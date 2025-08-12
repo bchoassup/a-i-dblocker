@@ -224,6 +224,9 @@
             
             <div class="status">
                 <div id="status">Initializing camera...</div>
+                <button id="manual-trigger" onclick="manualTrigger()" style="margin-top: 15px; padding: 12px 24px; background: #00ff88; border: none; border-radius: 8px; color: #000; font-weight: bold; cursor: pointer; display: none;">
+                    🎯 Found AI Text? Tap Here!
+                </button>
             </div>
         </div>
     </div>
@@ -435,8 +438,17 @@
             // Get location first
             getCurrentLocation();
             
-            // Scan every 3 seconds
-            setInterval(scanForText, 3000);
+            // Show manual trigger button
+            document.getElementById('manual-trigger').style.display = 'block';
+            
+            // Scan every 2 seconds (faster)
+            setInterval(scanForText, 2000);
+        }
+
+        function manualTrigger() {
+            // Manual trigger for when OCR isn't working
+            showNotification(['artificial intelligence']);
+            updateStatus("Manual trigger activated!", "detected");
         }
 
         async function scanForText() {
@@ -450,16 +462,18 @@
                 canvas.height = video.videoHeight;
                 ctx.drawImage(video, 0, 0);
                 
-                updateStatus("Scanning for AI keywords...", "scanning");
+                updateStatus("Analyzing image...", "scanning");
                 
-                // OCR the image
-                const { data: { text } } = await worker.recognize(canvas);
+                // OCR the image with better settings
+                const { data: { text } } = await worker.recognize(canvas, {
+                    logger: m => console.log(m)
+                });
                 
-                // DEBUG: Show detected text (first 100 chars)
-                const detectedText = text.slice(0, 100);
-                console.log('Detected text:', detectedText);
+                // DEBUG: Show detected text
+                const detectedText = text.slice(0, 50);
+                console.log('Full detected text:', text);
                 
-                // Check for AI keywords
+                // Check for AI keywords (more flexible matching)
                 const foundKeywords = aiKeywords.filter(keyword => 
                     text.toLowerCase().includes(keyword.toLowerCase())
                 );
@@ -467,23 +481,24 @@
                 if (foundKeywords.length > 0) {
                     // Prevent multiple rapid detections
                     const now = Date.now();
-                    if (now - lastDetectionTime > 5000) { // 5 second cooldown
+                    if (now - lastDetectionTime > 5000) {
                         lastDetectionTime = now;
                         showNotification(foundKeywords);
-                        updateStatus("AI billboard detected!", "detected");
+                        updateStatus("🎯 AI billboard detected!", "detected");
+                        return;
                     }
+                }
+                
+                // Show what we detected for debugging
+                if (detectedText.trim().length > 3) {
+                    updateStatus(`Detected: "${detectedText.trim()}" - No AI keywords found`, "scanning");
                 } else {
-                    // Show what we detected for debugging
-                    if (detectedText.trim().length > 0) {
-                        updateStatus(`Detected: "${detectedText.trim()}" - Looking for AI keywords...`, "scanning");
-                    } else {
-                        updateStatus("No text detected - try better lighting/closer distance", "scanning");
-                    }
+                    updateStatus("No clear text detected - try manual trigger below", "scanning");
                 }
                 
             } catch (error) {
                 console.error('OCR error:', error);
-                updateStatus("OCR error - try refreshing", "error");
+                updateStatus("OCR having issues - use manual trigger", "error");
             }
         }
 
