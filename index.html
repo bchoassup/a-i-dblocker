@@ -1,734 +1,261 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>AI Billboard Scanner – SF Culture Overlay</title>
-    <meta name="description" content="Web-based AR OCR app that detects AI buzzwords on billboards and overlays SF neighborhood culture stories. Works on mobile browsers." />
-    <meta name="theme-color" content="#111" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Billboard Scanner</title>
+    <script src="https://unpkg.com/tesseract.js@2.1.0/dist/tesseract.min.js"></script>
     <style>
-      :root {
-        --bg: #0b0b0b;
-        --fg: #f3f3f3;
-        --muted: #b7b7b7;
-        --accent: #00e0b8;
-        --danger: #ff5c5c;
-        --card: #121212;
-        --glass: rgba(10, 10, 10, 0.55);
-        --glass-strong: rgba(10, 10, 10, 0.75);
-        --border: rgba(255, 255, 255, 0.12);
-      }
-
-      * { box-sizing: border-box; }
-      html, body { height: 100%; }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--fg);
-        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        overflow: hidden;
-      }
-
-      /* Stage */
-      #stage {
-        position: fixed;
-        inset: 0;
-        display: grid;
-        grid-template-rows: 1fr auto;
-        background: #000;
-      }
-
-      video#camera {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        background: #000;
-      }
-      video#camera.mirrored { transform: scaleX(-1); }
-
-      /* Overlay chrome */
-      .overlay {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-      }
-
-      .hud {
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-        bottom: env(safe-area-inset-bottom, 16px);
-        display: flex;
-        gap: 10px;
-        padding: 10px 12px;
-        background: var(--glass);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        pointer-events: auto;
-        backdrop-filter: saturate(1.1) blur(8px);
-      }
-
-      button.control {
-        appearance: none;
-        background: #1a1a1a;
-        color: var(--fg);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 10px 12px;
-        font-size: 14px;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-      }
-      button.control[data-active="true"] { outline: 2px solid var(--accent); }
-      button.control:disabled { opacity: 0.5; cursor: not-allowed; }
-
-      .scan-frame {
-        position: absolute;
-        left: 50%; top: 20%;
-        width: min(82vw, 560px);
-        height: min(40vh, 340px);
-        transform: translateX(-50%);
-        border: 2px dashed rgba(255,255,255,0.35);
-        border-radius: 14px;
-        background: radial-gradient(ellipse at center, rgba(0,0,0,0.12), rgba(0,0,0,0.06) 40%, rgba(0,0,0,0));
-        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.3);
-        backdrop-filter: blur(2px);
-      }
-      .scan-dot {
-        position: absolute;
-        width: 10px; height: 10px; border-radius: 50%;
-        background: var(--accent);
-        right: 10px; top: 10px;
-        box-shadow: 0 0 12px rgba(0, 224, 184, 0.8);
-        animation: pulse 1.2s ease-in-out infinite;
-      }
-      @keyframes pulse { 0%{transform:scale(1);} 50%{transform:scale(1.6);} 100%{transform:scale(1);} }
-
-      .status {
-        position: absolute;
-        top: env(safe-area-inset-top, 12px);
-        left: 50%; transform: translateX(-50%);
-        padding: 8px 12px;
-        background: var(--glass);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        font-size: 13px;
-        pointer-events: none;
-      }
-
-      .detected-panel {
-        position: absolute;
-        top: calc(env(safe-area-inset-top, 12px) + 48px);
-        left: 50%; transform: translateX(-50%);
-        width: min(92vw, 720px);
-        background: var(--glass);
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 8px 10px;
-        backdrop-filter: blur(6px);
-        font-size: 12px;
-      }
-      .detected-panel #detectedText { max-height: 84px; overflow: auto; color: #ddd; }
-
-      .toast {
-        position: absolute;
-        left: 50%; transform: translateX(-50%);
-        top: calc(env(safe-area-inset-top, 12px) + 8px);
-        background: #0f2a24;
-        color: #c9fff3;
-        border: 1px solid #1f574c;
-        border-radius: 999px;
-        padding: 8px 12px;
-        font-size: 12px;
-        display: none;
-        z-index: 5;
-      }
-
-      .story-overlay {
-        position: fixed; inset: 0; display: none;
-        background: radial-gradient(200px 200px at 80% 0%, rgba(0,224,184,0.15), rgba(0,0,0,0)) , #0b0b0b;
-        color: var(--fg);
-        overflow: auto;
-        padding: calc(env(safe-area-inset-top, 16px) + 16px) 18px calc(env(safe-area-inset-bottom, 16px) + 24px);
-      }
-      .story-card {
-        max-width: 860px; margin: 0 auto;
-        background: #101010; border: 1px solid var(--border);
-        border-radius: 16px; padding: 16px;
-      }
-      .story-card h2 { margin: 6px 0 8px; font-size: 22px; }
-      .story-card p { color: var(--muted); line-height: 1.55; }
-      .story-actions { display: flex; gap: 10px; margin-top: 12px; }
-      .btn { background: #1a1a1a; color: var(--fg); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; font-size: 14px; cursor: pointer; }
-
-      /* Result card */
-      .result {
-        position: absolute;
-        left: 50%; bottom: calc(env(safe-area-inset-bottom, 16px) + 74px);
-        transform: translateX(-50%);
-        width: min(92vw, 720px);
-        max-width: 720px;
-        background: var(--glass-strong);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 14px 14px 12px 14px;
-        box-shadow: 0 6px 30px rgba(0,0,0,0.45);
-        backdrop-filter: blur(10px) saturate(1.2);
-        display: none;
-      }
-      .result h3 { margin: 0 0 6px 0; font-size: 18px; }
-      .result p { margin: 6px 0; color: var(--muted); line-height: 1.45; }
-      .pill {
-        display: inline-flex; align-items: center; gap: 8px;
-        padding: 6px 10px; border-radius: 999px;
-        background: #191919; border: 1px solid var(--border);
-        font-size: 12px; color: #ddd;
-      }
-
-      /* Start screen */
-      #start {
-        position: fixed; inset: 0; display: grid; place-items: center;
-        background: radial-gradient(180px 180px at 50% 20%, rgba(0,224,184,0.18), rgba(0,0,0,0)) , var(--bg);
-        padding: 22px;
-      }
-      .start-card {
-        width: min(620px, 92vw);
-        background: #101010;
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 18px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-        text-align: center;
-      }
-      .start-card h1 { margin: 8px 0 6px; font-size: 22px; }
-      .start-card p { margin: 8px 0 0; color: var(--muted); }
-      .cta {
-        margin-top: 14px;
-        width: 100%;
-        background: linear-gradient(90deg, #00e0b8, #3be4ff);
-        color: #081313; font-weight: 700; border: 0;
-        border-radius: 12px; padding: 14px 16px; font-size: 16px;
-        cursor: pointer;
-      }
-      .fine-print { margin-top: 8px; font-size: 12px; color: var(--muted); }
-
-      /* Hidden canvas for OCR */
-      #buffer { position: fixed; left: -99999px; top: -99999px; }
-
-      a { color: #7be0ff; text-decoration: none; }
-      a:hover { text-decoration: underline; }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: #000;
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+        
+        .header {
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        .scanner-area {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 40%;
+            border: 3px solid #00ff88;
+            border-radius: 15px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+        
+        .status {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 16px;
+        }
+        
+        .scan-button {
+            width: 100%;
+            max-width: 300px;
+            padding: 20px;
+            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+            border: none;
+            border-radius: 15px;
+            color: #000;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px auto;
+            display: block;
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .scan-button:active {
+            transform: translateY(2px);
+        }
+        
+        .scan-button:disabled {
+            background: #666;
+            color: #999;
+            cursor: not-allowed;
+        }
+            background: rgba(0, 255, 136, 0.2);
+            border: 2px solid #00ff88;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: none;
+        }
     </style>
-  </head>
-  <body>
-    <div id="start">
-      <div class="start-card">
-        <div class="pill">📷 Camera + 🔤 OCR + 📍 Location</div>
-        <h1>AI Billboard Scanner</h1>
-        <p>Point at AI-lingo billboards ("ChatGPT", "machine learning", "AI-powered"). We detect the buzzwords and surface neighborhood stories instead.</p>
-        <button id="startBtn" class="cta">Start camera</button>
-        <div class="fine-print">On iOS/Safari, you must tap to grant camera and location. Works best outdoors and with steady framing.</div>
-      </div>
+</head>
+<body>
+    <video id="video" autoplay playsinline></video>
+    
+    <div class="overlay">
+        <div class="header">
+            <h1>🎯 AI Billboard Scanner</h1>
+            <p>Auto-scanning for AI text...</p>
+        </div>
+        
+        <div class="scanner-area"></div>
+        
+        <div class="status" id="status">Starting camera and scanner...</div>
+        
+        <button class="scan-button" id="scanBtn" onclick="scanNow()" disabled>
+            📸 Scan the Billboard
+        </button>
+    </div>
+    
+    <div class="detected" id="detected">
+        <h2>🎯 AI Text Found!</h2>
+        <p id="foundText"></p>
     </div>
 
-    <main id="stage" aria-live="polite" aria-busy="true" style="display:none">
-      <video id="camera" playsinline autoplay muted></video>
-      <canvas id="buffer"></canvas>
-      <div class="overlay">
-        <div class="status" id="status">Idle</div>
-        <div class="scan-frame">
-          <div class="scan-dot" aria-hidden="true"></div>
-        </div>
-        <div id="toast" class="toast" role="status" aria-live="polite"></div>
-        <div id="detectedPanel" class="detected-panel" hidden>
-          <div class="pill">Detected text</div>
-          <div id="detectedText"></div>
-        </div>
-      </div>
-
-      <section id="result" class="result" role="dialog" aria-modal="false"></section>
-
-      <div class="hud">
-        <button id="scanBtn" class="control">🔍 Scan for AI-related Billboard</button>
-      </div>
-    </main>
-
-    <section id="story" class="story-overlay" role="dialog" aria-modal="true" aria-labelledby="storyTitle">
-      <div class="story-card">
-        <div class="pill" id="storyPill">🌆 Neighborhood story</div>
-        <h2 id="storyTitle"></h2>
-        <p id="storyBody"></p>
-        <p id="storyLinkWrap"></p>
-        <div class="story-actions">
-          <button id="closeStory" class="btn">Back to scanner</button>
-          <button id="rescan" class="btn">Scan again</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Tesseract.js (OCR) -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
     <script>
-      (() => {
-        const ui = {
-          start: document.getElementById('start'),
-          startBtn: document.getElementById('startBtn'),
-          stage: document.getElementById('stage'),
-          video: document.getElementById('camera'),
-          canvas: document.getElementById('buffer'),
-          status: document.getElementById('status'),
-          result: document.getElementById('result'),
-          scanBtn: document.getElementById('scanBtn'),
-          toast: document.getElementById('toast'),
-          detectedPanel: document.getElementById('detectedPanel'),
-          detectedText: document.getElementById('detectedText'),
-          story: document.getElementById('story'),
-          storyTitle: document.getElementById('storyTitle'),
-          storyBody: document.getElementById('storyBody'),
-          storyLinkWrap: document.getElementById('storyLinkWrap'),
-          closeStory: document.getElementById('closeStory'),
-          rescan: document.getElementById('rescan'),
-        };
-
-        // Keywords to flag (50+ common AI terms/brands/phrases)
-        const aiKeywords = [
-          'ai','artificial intelligence','machine learning','deep learning','neural network','neural networks','llm','large language model','large language models','transformer','transformers','diffusion','stable diffusion','generative','foundation model','foundation models','prompt','prompting','prompt engineering','automation','automated','autonomous','autopilot','smart','intelligent','algorithm','algorithmic','data science','predictive','prediction','predictive analytics','analytics','computer vision','image recognition','ocr','speech recognition','voice recognition','nlp','natural language processing','reinforcement learning','supervised learning','unsupervised learning','model','models','chatbot','chat bot','chatbots','virtual assistant','assistant','copilot','co-pilot','chatgpt','gpt','gpt-4','gpt-3.5','openai','claude','anthropic','gemini','bard','palm','llama','midjourney','dall-e','deepfake','deepfakes','synthetic media','recommendation engine','personalization','forecasting','optimization','robotics','robot','autonomous vehicle','self-driving','ai powered','ai-powered'
-        ];
-        const aiExtraRegexes = [
-          /\b(?:chat\s*g[pt]t|chatg[pt]t|gpt)(?:[-\s]*\d+(?:\.\d+)?)?\b/i,
-          /\bai[-\s]?powered\b/i,
-        ];
-        const aiRegexes = [
-          ...aiKeywords.map(k => new RegExp(`\\b${k.replace(/[-/\\^$*+?.()|[\]{}]/g, r => `\\${r}`).replace(/\s+/g,'\\s+') }\\b`, 'i')),
-          ...aiExtraRegexes,
-        ];
-
-        // SF neighborhood centers and short stories
-        const sfNeighborhoods = [
-          {
-            id: 'mission', name: 'Mission District', center: [37.7599, -122.4148],
-            story: {
-              title: "Carlos Santana's Mission roots",
-              text: "Before global stages, Santana shaped sounds in the Mission—melding Latin rock with the neighborhood's mural-streaked spirit.",
-              link: "https://missionlocal.org/",
-            },
-          },
-          {
-            id: 'chinatown', name: 'Chinatown', center: [37.7941, -122.4078],
-            story: {
-              title: "Chinatown opera and activism",
-              text: "From Cantonese opera to immigrant-led movements, Chinatown is a century-deep tapestry of language, food, and solidarity.",
-              link: "https://www.chsa.org/",
-            },
-          },
-          {
-            id: 'fillmore', name: 'Fillmore / Western Addition', center: [37.7799, -122.4326],
-            story: {
-              title: "Harlem of the West",
-              text: "The Fillmore once pulsed with jazz legends—Billie Holiday, Dizzy Gillespie—creating an unmatched West Coast sound.",
-              link: "https://www.sfmuseum.org/",
-            },
-          },
-          {
-            id: 'bayview', name: 'Bayview–Hunters Point', center: [37.7309, -122.3827],
-            story: {
-              title: "Bayview's Black arts lineage",
-              text: "Community studios and street festivals sustain Bayview's Black art traditions in the face of waves of redevelopment.",
-              link: "https://bayviewopera.org/",
-            },
-          },
-          {
-            id: 'tenderloin', name: 'Tenderloin', center: [37.7831, -122.4167],
-            story: {
-              title: "Compton's Cafeteria uprising",
-              text: "Years before Stonewall, trans and queer residents resisted police violence at Compton's Cafeteria right here in the Tenderloin.",
-              link: "https://www.glbthistory.org/",
-            },
-          },
-          {
-            id: 'soma', name: 'SoMa', center: [37.7786, -122.4059],
-            story: {
-              title: "SoMa's industrial spine",
-              text: "Foundries and factories once defined SoMa—rail spurs and warehouses powering Bay Area industry before the loft boom.",
-              link: "https://www.foundsf.org/",
-            },
-          },
-          {
-            id: 'castro', name: 'Castro', center: [37.7609, -122.4350],
-            story: {
-              title: "LGBTQ+ activism in the Castro",
-              text: "From Harvey Milk's camera shop to Pride parades, the Castro is a living archive of queer resilience and joy.",
-              link: "https://www.glbthistory.org/",
-            },
-          },
-          {
-            id: 'sunset', name: 'Sunset', center: [37.7486, -122.4940],
-            story: {
-              title: "Sunset surf and fog craft",
-              text: "Ocean Beach surfers and makerspace tinkerers carve new rituals in the kingdom of fog.",
-              link: "https://outsidelands.org/",
-            },
-          },
-          {
-            id: 'richmond', name: 'Richmond District', center: [37.7802, -122.4825],
-            story: {
-              title: "Richmond's diasporic kitchens",
-              text: "From Burmese to Russian bakeries, the Richmond tells migration stories through soup dumplings and rye.",
-              link: "https://richmondsf.org/",
-            },
-          },
-        ];
-
-        function haversineDistanceKm([lat1, lon1], [lat2, lon2]) {
-          const toRad = d => (d * Math.PI) / 180;
-          const R = 6371;
-          const dLat = toRad(lat2 - lat1);
-          const dLon = toRad(lon2 - lon1);
-          const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          return R * c;
-        }
-
-        function nearestNeighborhood(position) {
-          if (!position) return sfNeighborhoods[0];
-          const pos = [position.coords.latitude, position.coords.longitude];
-          let best = null; let min = Infinity;
-          for (const n of sfNeighborhoods) {
-            const d = haversineDistanceKm(pos, n.center);
-            if (d < min) { min = d; best = n; }
-          }
-          return best;
-        }
-
-        let ocrWorker = null;
-        let ocrReady = false;
-        let stream = null;
-        let usingBackCamera = true;
-        let lastText = '';
-        let lastPosition = null;
-
-        const TARGET_CANVAS_WIDTH = 720; // resized for OCR
-
-        function setStatus(text) {
-          ui.status.textContent = text;
-        }
-
-        function setResultCard({ title, bodyHtml }) {
-          ui.result.innerHTML = `
-            <div class="pill">🌆 Local culture overlay</div>
-            <h3>${title}</h3>
-            ${bodyHtml}
-          `;
-          ui.result.style.display = 'block';
-        }
-
-        function hideResultCard() {
-          ui.result.style.display = 'none';
-          ui.result.innerHTML = '';
-        }
-
-        async function ensureWorker() {
-          if (ocrWorker) return ocrWorker;
-          setStatus('Loading OCR…');
-          ocrWorker = await Tesseract.createWorker({
-            workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/worker.min.js',
-            langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-            corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@3.0.2/tesseract-core.wasm.js',
-            logger: m => {
-              if (m?.status) setStatus(`OCR: ${m.status}${m.progress ? ' ' + Math.round(m.progress*100) + '%' : ''}`);
-            }
-          });
-          await ocrWorker.loadLanguage('eng');
-          await ocrWorker.initialize('eng');
-          setStatus('OCR ready');
-          ocrReady = true;
-          ui.scanBtn.disabled = false;
-          return ocrWorker;
-        }
-
-        async function startCamera() {
-          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            throw new Error('Camera API not available in this browser');
-          }
-
-          // Try preferred back camera first, then fallbacks
-          const attempts = [
-            { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
-            { video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
-            { video: true, audio: false },
-          ];
-
-          let lastErr = null;
-          for (const constraints of attempts) {
+        let video;
+        let worker;
+        let scanning = false;
+        let ready = false;
+        
+        // AI keywords
+        const aiWords = ['ai', 'artificial intelligence', 'machine learning', 'chatgpt', 'smart', 'intelligent', 'automation'];
+        
+        // Auto-start everything when page loads
+        window.addEventListener('load', function() {
+            startEverything();
+        });
+        
+        async function startEverything() {
             try {
-              const s = await navigator.mediaDevices.getUserMedia(constraints);
-              stream = s;
-              ui.video.srcObject = stream;
-              await ui.video.play().catch(() => {});
-              const track = stream.getVideoTracks()[0];
-              const settings = track.getSettings ? track.getSettings() : {};
-              // Update mirror based on actual camera
-              usingBackCamera = settings.facingMode ? settings.facingMode !== 'user' : usingBackCamera;
-              updateVideoMirror();
-              setStatus('Camera ready');
-              return;
-            } catch (e) {
-              lastErr = e;
+                updateStatus('🎥 Starting camera...');
+                
+                // Get camera
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
+                
+                video = document.getElementById('video');
+                video.srcObject = stream;
+                await video.play();
+                
+                updateStatus('🤖 Loading text scanner...');
+                
+                // Start OCR
+                worker = Tesseract.createWorker();
+                await worker.load();
+                await worker.loadLanguage('eng');
+                await worker.initialize('eng');
+                
+                updateStatus('✅ Ready! Point at billboard and tap scan');
+                ready = true;
+                document.getElementById('scanBtn').disabled = false;
+                
+                // Remove auto-scanning - now manual only
+                
+            } catch (error) {
+                updateStatus('❌ Failed: ' + error.message);
+                console.error(error);
             }
-          }
-          throw lastErr || new Error('Unable to access camera');
         }
-
-        function stopCamera() {
-          if (stream) {
-            for (const t of stream.getTracks()) t.stop();
-            stream = null;
-          }
+        
+        function scanNow() {
+            if (!ready || scanning) return;
+            
+            scanning = true;
+            updateStatus('🔍 Scanning billboard...');
+            document.getElementById('scanBtn').textContent = '⏳ Scanning...';
+            document.getElementById('scanBtn').disabled = true;
+            
+            performScan();
         }
-
-        // Torch/flip/snapshot removed for simplified UI
-
-        function extractCropRect(videoWidth, videoHeight) {
-          // Focus central band where text likely appears on a billboard
-          const cropWidth = Math.floor(videoWidth * 0.82);
-          const cropHeight = Math.floor(videoHeight * 0.36);
-          const x = Math.floor((videoWidth - cropWidth) / 2);
-          const y = Math.floor(videoHeight * 0.20);
-          return { x, y, width: cropWidth, height: cropHeight };
-        }
-
-        function downscaleAndCrop() {
-          const vw = ui.video.videoWidth || 1280;
-          const vh = ui.video.videoHeight || 720;
-          if (!vw || !vh) return null;
-          const scale = TARGET_CANVAS_WIDTH / vw;
-          const ch = Math.floor(vh * scale);
-          ui.canvas.width = TARGET_CANVAS_WIDTH;
-          ui.canvas.height = ch;
-          const ctx = ui.canvas.getContext('2d');
-          try {
-            ctx.drawImage(ui.video, 0, 0, TARGET_CANVAS_WIDTH, ch);
-            const rect = extractCropRect(TARGET_CANVAS_WIDTH, ch);
-            const crop = ctx.getImageData(rect.x, rect.y, rect.width, rect.height);
-
-            // Optional contrast boost for legibility
-            const data = crop.data;
-            for (let i = 0; i < data.length; i += 4) {
-              const r = data[i], g = data[i+1], b = data[i+2];
-              let y = 0.2126*r + 0.7152*g + 0.0722*b; // luminance
-              y = Math.min(255, Math.max(0, (y - 128) * 1.15 + 128));
-              data[i] = data[i+1] = data[i+2] = y;
-            }
-            ctx.putImageData(crop, rect.x, rect.y);
-            return { rect, width: TARGET_CANVAS_WIDTH, height: ch };
-          } catch (e) {
-            console.error('Canvas error', e);
-            setStatus('Camera frame not available');
-            return null;
-          }
-        }
-
-        function detectAIKeywords(text) {
-          if (!text) return [];
-          const found = new Set();
-          for (const rx of aiRegexes) {
-            const m = text.match(rx);
-            if (m) {
-              found.add((m[0] || '').trim());
-            }
-          }
-          return Array.from(found);
-        }
-
-        function renderNeighborhoodCard(textFound) {
-          const n = nearestNeighborhood(lastPosition);
-          const title = `In ${n.name}: ${n.story.title}`;
-          const bodyHtml = `
-            <p>${n.story.text}</p>
-            <p class="fine-print">Detected keyword: <span class="pill">${textFound}</span></p>
-            <p><a href="${n.story.link}" target="_blank" rel="noopener">Learn more →</a></p>
-          `;
-          setResultCard({ title, bodyHtml });
-        }
-
-        function showToast(message) {
-          ui.toast.textContent = message;
-          ui.toast.style.display = 'inline-flex';
-          clearTimeout(showToast._t);
-          showToast._t = setTimeout(() => { ui.toast.style.display = 'none'; }, 2600);
-        }
-
-        function openStory(neighborhood, keywords) {
-          ui.storyTitle.textContent = `${neighborhood.name}: ${neighborhood.story.title}`;
-          ui.storyBody.textContent = neighborhood.story.text;
-          ui.storyLinkWrap.innerHTML = `<a href="${neighborhood.story.link}" target="_blank" rel="noopener">Learn more →</a>`;
-          ui.story.style.display = 'block';
-          ui.story.scrollTop = 0;
-        }
-
-        function closeStory() { ui.story.style.display = 'none'; }
-
+        
         async function performScan() {
-          if (!stream) return;
-          if (!ocrReady) { showToast('OCR still loading…'); return; }
-          ui.scanBtn.disabled = true;
-          setStatus('Scanning…');
-          try {
-            const worker = await ensureWorker();
-            const dims = downscaleAndCrop();
-            if (!dims) { setStatus('Camera not ready'); return; }
-            const { data: { text } } = await worker.recognize(ui.canvas);
-            const normalized = (text || '').replace(/\s+/g, ' ').trim();
-            lastText = normalized;
-            ui.detectedPanel.hidden = !normalized;
-            ui.detectedText.textContent = normalized || '';
-            if (normalized) setStatus(`Text found (${normalized.slice(0, 50)}${normalized.length>50?'…':''})`);
-            const hits = detectAIKeywords(normalized);
-            if (hits.length > 0) {
-              const n = nearestNeighborhood(lastPosition);
-              showToast(`AI keywords detected: ${hits.slice(0,3).join(', ')} • ${n.name}`);
-              openStory(n, hits);
-            } else {
-              showToast('No AI keywords detected');
+            try {
+                // Capture frame
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
+                
+                // OCR
+                const { data: { text } } = await worker.recognize(canvas);
+                
+                if (text && text.trim()) {
+                    console.log('Detected text:', text);
+                    
+                    // Check for AI words
+                    const foundWords = [];
+                    const lowerText = text.toLowerCase();
+                    
+                    for (const word of aiWords) {
+                        if (lowerText.includes(word)) {
+                            foundWords.push(word);
+                        }
+                    }
+                    
+                    if (foundWords.length > 0) {
+                        showDetection(text, foundWords);
+                    } else {
+                        updateStatus(`📝 Text found: "${text.slice(0, 30)}..." (no AI keywords)`);
+                    }
+                } else {
+                    updateStatus('❌ No text detected - try better lighting or get closer');
+                }
+                
+            } catch (error) {
+                updateStatus('❌ Scan failed - try again');
+                console.error(error);
             }
-          } catch (err) {
-            console.error('Scan error', err);
-            const msg = err && err.message ? err.message : 'Scan error';
-            setStatus(msg);
-            showToast(msg);
-          } finally {
-            ui.scanBtn.disabled = false;
-          }
+            
+            // Reset button
+            setTimeout(() => {
+                scanning = false;
+                document.getElementById('scanBtn').textContent = '📸 Scan the Billboard';
+                document.getElementById('scanBtn').disabled = false;
+            }, 2000);
         }
-
-        // Geolocation
-        function requestLocation() {
-          if (!('geolocation' in navigator)) return;
-          navigator.geolocation.getCurrentPosition(
-            pos => { lastPosition = pos; },
-            _err => { /* ignore, we fallback */ },
-            { enableHighAccuracy: true, maximumAge: 30_000, timeout: 7_000 }
-          );
-          // Also watch to update while moving
-          try {
-            navigator.geolocation.watchPosition(pos => { lastPosition = pos; });
-          } catch {}
+        
+        function startScanning() {
+            // Removed auto-scanning - now manual only
         }
-
-        // Controls
-        ui.scanBtn.addEventListener('click', () => { hideResultCard(); performScan(); });
-
-        ui.torch.addEventListener('click', async () => {
-          const active = ui.torch.dataset.active === 'true';
-          await setTorch(!active);
-        });
-
-        // Flip removed
-
-        // Snapshot removed
-
-        // Story actions
-        ui.closeStory.addEventListener('click', () => { closeStory(); });
-        ui.rescan.addEventListener('click', () => { closeStory(); performScan(); });
-
-        function updateVideoMirror() {
-          if (usingBackCamera) ui.video.classList.remove('mirrored');
-          else ui.video.classList.add('mirrored');
+        
+        function showDetection(text, words) {
+            updateStatus('🎯 AI TEXT DETECTED!');
+            
+            document.getElementById('foundText').innerHTML = 
+                `<strong>Found:</strong> ${words.join(', ')}<br>
+                 <strong>In text:</strong> "${text.slice(0, 50)}..."`;
+            
+            document.getElementById('detected').style.display = 'block';
+            
+            // Hide after 5 seconds
+            setTimeout(() => {
+                document.getElementById('detected').style.display = 'none';
+            }, 5000);
         }
-
-        // Start button
-        ui.startBtn.addEventListener('click', async () => {
-          try {
-            if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-              alert('Camera requires HTTPS. Please deploy to GitHub Pages or use https://localhost.');
-              return;
-            }
-            requestLocation();
-            ui.scanBtn.disabled = true;
-            // Show stage so video is in layout before starting camera (helps iOS sizing)
-            ui.start.style.display = 'none';
-            ui.stage.style.display = 'grid';
-            await startCamera();
-            await ensureWorker();
-            setStatus('Scanning…');
-          } catch (e) {
-            console.error('Camera start failed', e);
-            ui.stage.style.display = 'none';
-            ui.start.style.display = 'grid';
-            const hint = (e && e.name === 'NotAllowedError') ? 'Permission blocked. Enable camera access in browser settings.'
-              : (e && e.name === 'NotFoundError') ? 'No camera found on this device.'
-              : (e && e.message) ? e.message : 'Camera error';
-            alert(hint);
-          }
-        });
-
-        // Lifecycle
-        document.addEventListener('visibilitychange', () => {
-          if (document.hidden) {
-            stopCamera();
-          } else {
-            startCamera().catch(() => {});
-          }
-        });
-
-        window.addEventListener('beforeunload', () => {
-          stopCamera();
-          if (ocrWorker) { ocrWorker.terminate?.(); ocrWorker = null; }
-        });
-
-        // Minimal RAF to keep UI responsive on some browsers
-        function onFrame() { requestAnimationFrame(onFrame); }
-        requestAnimationFrame(onFrame);
-
-        // Offline support via inline Service Worker (cache-after-first-load)
-        async function registerSW() {
-          if (!('serviceWorker' in navigator)) return;
-          try {
-            const swCode = `
-              const CACHE = 'ai-billboard-v1';
-              const ASSETS = [
-                './', './index.html',
-                'https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js',
-                'https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/worker.min.js',
-                'https://cdn.jsdelivr.net/npm/tesseract.js-core@3.0.2/tesseract-core.wasm.js',
-                'https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz'
-              ];
-              self.addEventListener('install', event => {
-                event.waitUntil(
-                  caches.open(CACHE).then(cache => cache.addAll(ASSETS).catch(() => {}))
-                );
-                self.skipWaiting();
-              });
-              self.addEventListener('activate', event => {
-                event.waitUntil(self.clients.claim());
-              });
-              self.addEventListener('fetch', event => {
-                const req = event.request;
-                event.respondWith(
-                  caches.match(req).then(cached => cached || fetch(req).then(resp => {
-                    const copy = resp.clone();
-                    caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
-                    return resp;
-                  }).catch(() => caches.match('./')))
-                );
-              });
-            `;
-            const blob = new Blob([swCode], { type: 'text/javascript' });
-            const url = URL.createObjectURL(blob);
-            await navigator.serviceWorker.register(url, { scope: './' });
-            // Do not revoke URL; keep for lifetime of page
-          } catch (e) {
-            console.info('ServiceWorker not registered', e);
-          }
+        
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
         }
-        registerSW();
-      })();
     </script>
-  </body>
-  </html>
-
+</body>
+</html>
