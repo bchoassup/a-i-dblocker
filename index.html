@@ -394,15 +394,24 @@
                             lng: position.coords.longitude
                         };
                         
+                        // Show exact coordinates for debugging
+                        console.log('Your coordinates:', userLocation.lat, userLocation.lng);
+                        
                         const neighborhood = getNeighborhoodFromLocation(userLocation.lat, userLocation.lng);
                         const neighborhoodName = neighborhoods[neighborhood].name;
-                        locationInfo.innerHTML = `📍 Current location: ${neighborhoodName}`;
+                        
+                        // Show coordinates in the UI for debugging
+                        locationInfo.innerHTML = `📍 ${neighborhoodName}<br><small>Lat: ${userLocation.lat.toFixed(3)}, Lng: ${userLocation.lng.toFixed(3)}</small>`;
                     },
                     (error) => {
                         console.log('Location error:', error);
                         locationInfo.innerHTML = `📍 Location unavailable - showing default SF content`;
                     },
-                    { timeout: 10000 }
+                    { 
+                        enableHighAccuracy: true,
+                        timeout: 15000,
+                        maximumAge: 60000
+                    }
                 );
             } else {
                 locationInfo.innerHTML = `📍 Location not supported - showing default SF content`;
@@ -410,18 +419,29 @@
         }
 
         function getNeighborhoodFromLocation(lat, lng) {
-            // Mission District: roughly 37.75-37.77, -122.42 to -122.40
-            if (lat >= 37.75 && lat <= 37.77 && lng >= -122.42 && lng <= -122.40) {
+            // More precise SF neighborhood boundaries
+            
+            // Mission District: 37.746-37.773, -122.427 to -122.396
+            if (lat >= 37.746 && lat <= 37.773 && lng >= -122.427 && lng <= -122.396) {
                 return 'mission';
             }
-            // SOMA: roughly 37.77-37.79, -122.42 to -122.39
-            else if (lat >= 37.77 && lat <= 37.79 && lng >= -122.42 && lng <= -122.39) {
+            // SOMA: 37.770-37.794, -122.420 to -122.385
+            else if (lat >= 37.770 && lat <= 37.794 && lng >= -122.420 && lng <= -122.385) {
                 return 'soma';
             }
-            // Castro: roughly 37.76-37.77, -122.44 to -122.42
-            else if (lat >= 37.76 && lat <= 37.77 && lng >= -122.44 && lng <= -122.42) {
+            // Castro: 37.758-37.768, -122.445 to -122.425
+            else if (lat >= 37.758 && lat <= 37.768 && lng >= -122.445 && lng <= -122.425) {
                 return 'castro';
             }
+            // Haight-Ashbury: 37.766-37.773, -122.456 to -122.440
+            else if (lat >= 37.766 && lat <= 37.773 && lng >= -122.456 && lng <= -122.440) {
+                return 'haight';
+            }
+            // Richmond: 37.775-37.785, -122.515 to -122.440
+            else if (lat >= 37.775 && lat <= 37.785 && lng >= -122.515 && lng <= -122.440) {
+                return 'richmond';
+            }
+            
             return 'default';
         }
 
