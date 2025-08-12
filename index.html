@@ -589,26 +589,36 @@
                 console.log('Raw OCR Result:', text);
                 
                 if (text && text.trim().length > 1) {
-                    // Show exactly what was detected
+                    // Clean up the detected text - remove special characters and normalize
                     const detectedText = text.trim();
-                    console.log('Clean detected text:', detectedText);
+                    const cleanText = detectedText.replace(/[^a-zA-Z0-9\s\-\.]/g, ' ').toLowerCase();
+                    console.log('Cleaned text for matching:', cleanText);
                     
-                    // Check ONLY the detected text for AI keywords
+                    // Check for AI keywords with more flexible matching
                     const foundKeywords = [];
-                    const lowerText = detectedText.toLowerCase();
                     
                     for (const keyword of aiKeywords) {
-                        if (lowerText.includes(keyword.toLowerCase())) {
+                        const keywordLower = keyword.toLowerCase();
+                        
+                        // Direct match
+                        if (cleanText.includes(keywordLower)) {
+                            foundKeywords.push(keyword);
+                        }
+                        // Fuzzy match for common OCR errors
+                        else if (fuzzyMatch(cleanText, keywordLower)) {
                             foundKeywords.push(keyword);
                         }
                     }
                     
-                    if (foundKeywords.length > 0) {
+                    // Remove duplicates
+                    const uniqueKeywords = [...new Set(foundKeywords)];
+                    
+                    if (uniqueKeywords.length > 0) {
                         updateStatus(`✅ Found AI text: "${detectedText}"`, "detected");
-                        showDetectedKeywords(foundKeywords);
+                        showDetectedKeywords(uniqueKeywords);
                         
                         setTimeout(() => {
-                            showNotification(foundKeywords);
+                            showNotification(uniqueKeywords);
                         }, 1000);
                     } else {
                         updateStatus(`📝 Text found: "${detectedText}" - No AI keywords`, "");
@@ -626,6 +636,55 @@
             }
             
             resetScanButton();
+        }
+
+        function fuzzyMatch(text, keyword) {
+            // Handle common OCR errors for AI terms
+            
+            // "artificial intelligence" variations
+            if (keyword === 'artificial intelligence') {
+                return text.includes('artificial') && text.includes('intelligence') ||
+                       text.includes('articial') && text.includes('intelligence') ||
+                       text.includes('artificial') && text.includes('intellignece') ||
+                       text.includes('artifical') && text.includes('intelligence');
+            }
+            
+            // "machine learning" variations  
+            if (keyword === 'machine learning') {
+                return text.includes('machine') && text.includes('learning') ||
+                       text.includes('machne') && text.includes('learning') ||
+                       text.includes('machine') && text.includes('learming');
+            }
+            
+            // "AI" can be confused with other characters
+            if (keyword === 'ai') {
+                return /\b(ai|a\s*i|a\.i\.?)\b/i.test(text);
+            }
+            
+            // "deep learning" variations
+            if (keyword === 'deep learning') {
+                return text.includes('deep') && text.includes('learning');
+            }
+            
+            // "neural network" variations
+            if (keyword === 'neural network') {
+                return text.includes('neural') && text.includes('network') ||
+                       text.includes('neural') && text.includes('netwrk');
+            }
+            
+            // For other keywords, try simple character substitution
+            const fuzzyKeyword = keyword
+                .replace('i', '[il1|]')
+                .replace('o', '[o0]')
+                .replace('e', '[e3]')
+                .replace('s', '[s5]');
+            
+            try {
+                const regex = new RegExp(fuzzyKeyword, 'i');
+                return regex.test(text);
+            } catch (e) {
+                return false;
+            }
         }
 
         function performVisualAnalysis(canvas) {
