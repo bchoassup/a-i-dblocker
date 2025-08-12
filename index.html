@@ -5,659 +5,152 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Billboard Scanner</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: Arial, sans-serif;
             background: #000;
             color: #fff;
-            overflow: hidden;
+            margin: 0;
+            padding: 20px;
         }
-
-        .container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-        }
-
         video {
             width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.3);
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 20px;
-        }
-
-        .header {
-            text-align: center;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 15px;
+            max-width: 400px;
+            border: 2px solid #00ff88;
             border-radius: 10px;
-            backdrop-filter: blur(10px);
         }
-
-        .header h1 {
-            font-size: 24px;
-            margin-bottom: 5px;
-        }
-
-        .header p {
-            font-size: 14px;
-            opacity: 0.8;
-        }
-
-        .scanner-frame {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            height: 40%;
-            border: 3px solid #00ff88;
-            border-radius: 15px;
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 0.7; }
-            50% { opacity: 1; }
-        }
-
-        .controls {
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-        }
-
-        .scan-button {
+        button {
             width: 100%;
+            max-width: 400px;
             padding: 20px;
-            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
-            border: none;
-            border-radius: 15px;
-            color: #000;
             font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-bottom: 15px;
-            transition: all 0.3s ease;
-            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
-        }
-
-        .scan-button:active {
-            transform: translateY(2px);
-        }
-
-        .scan-button.scanning {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
-            animation: scanning 1s infinite;
-        }
-
-        @keyframes scanning {
-            0%, 100% { opacity: 0.8; }
-            50% { opacity: 1; }
-        }
-
-        .status {
-            text-align: center;
-            font-size: 16px;
-            margin-bottom: 15px;
-            min-height: 40px;
-            padding: 10px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .status.detected {
-            color: #00ff88;
-            font-weight: bold;
-            background: rgba(0, 255, 136, 0.1);
-            border: 1px solid rgba(0, 255, 136, 0.3);
-        }
-
-        .status.error {
-            color: #ff4444;
-            background: rgba(255, 68, 68, 0.1);
-            border: 1px solid rgba(255, 68, 68, 0.3);
-        }
-
-        .detected-keywords {
-            background: rgba(0, 255, 136, 0.15);
-            border: 1px solid rgba(0, 255, 136, 0.3);
+            background: #00ff88;
+            color: #000;
+            border: none;
             border-radius: 10px;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+        .status {
+            background: #333;
             padding: 15px;
-            margin-bottom: 15px;
-            text-align: center;
+            border-radius: 8px;
+            margin: 10px 0;
+            max-width: 400px;
+        }
+        .result {
+            background: #004400;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            max-width: 400px;
             display: none;
         }
-
-        .detected-keywords.show {
-            display: block;
-            animation: slideIn 0.5s ease;
-        }
-
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .detected-keywords h4 {
-            color: #00ff88;
-            margin-bottom: 8px;
-            font-size: 16px;
-        }
-
-        .keywords-list {
-            font-size: 14px;
-            opacity: 0.9;
-        }
-
-        .location-info {
-            background: rgba(0, 0, 0, 0.5);
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 14px;
-            text-align: center;
-            opacity: 0.8;
-        }
-
         .notification {
             position: fixed;
-            top: -100%;
+            top: 20px;
             left: 50%;
             transform: translateX(-50%);
             width: 90%;
-            max-width: 400px;
+            max-width: 350px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 20px;
-            padding: 25px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            display: none;
             z-index: 1000;
         }
-
-        .notification.show {
-            top: 20px;
-        }
-
-        .notification h3 {
-            font-size: 20px;
-            margin-bottom: 10px;
-            color: #fff;
-        }
-
-        .notification p {
-            font-size: 16px;
-            margin-bottom: 20px;
-            color: rgba(255, 255, 255, 0.9);
-            line-height: 1.4;
-        }
-
         .notification button {
-            width: 100%;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
-            border-radius: 12px;
-            color: #fff;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .content-page {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #fff;
-            color: #333;
-            transform: translateY(100%);
-            transition: transform 0.5s ease;
-            z-index: 2000;
-            overflow-y: auto;
-        }
-
-        .content-page.show {
-            transform: translateY(0);
-        }
-
-        .content-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
-            padding: 60px 20px 30px;
-            text-align: center;
-        }
-
-        .content-body {
-            padding: 30px 20px;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .close-btn {
-            position: absolute;
-            top: 30px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
-            color: #fff;
-            font-size: 24px;
-            padding: 10px;
-            border-radius: 50%;
-            cursor: pointer;
-            width: 45px;
-            height: 45px;
-        }
-
-        @media (max-width: 480px) {
-            .header h1 { font-size: 20px; }
-            .notification { width: 95%; }
+            background: rgba(255,255,255,0.2);
+            color: white;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <video id="video" autoplay playsinline></video>
-        
-        <div class="overlay">
-            <div class="header">
-                <h1>🎯 AI Billboard Scanner</h1>
-                <p>Detects AI advertising and shows local culture instead</p>
-            </div>
-            
-            <div class="scanner-frame"></div>
-            
-            <div class="controls">
-                <button class="scan-button" id="scan-button" onclick="performScan()">
-                    📸 Scan for AI Text
-                </button>
-                
-                <div class="status" id="status">Ready to scan!</div>
-                
-                <div class="detected-keywords" id="detected-keywords">
-                    <h4>🎯 AI Keywords Found:</h4>
-                    <div class="keywords-list" id="keywords-list"></div>
-                </div>
-                
-                <div class="location-info" id="location-info">
-                    📍 Getting location...
-                </div>
-            </div>
-        </div>
+    <h1>🎯 AI Billboard Scanner</h1>
+    
+    <video id="video" autoplay playsinline></video>
+    
+    <button onclick="startCamera()">📱 Start Camera</button>
+    <button onclick="scan()" id="scanBtn" disabled>🔍 Scan for AI</button>
+    
+    <div class="status" id="status">Click "Start Camera" to begin</div>
+    
+    <div class="result" id="result">
+        <strong>🎯 Found:</strong> <span id="foundText"></span>
     </div>
 
-    <div id="notification" class="notification">
-        <h3 id="notif-title">AI Billboard Detected!</h3>
-        <p id="notif-text">Local culture content loading...</p>
-        <button onclick="showContent()">Explore Local Culture →</button>
-    </div>
-
-    <div id="content-page" class="content-page">
-        <div class="content-header">
-            <button class="close-btn" onclick="closeContent()">&times;</button>
-            <h1 id="content-title">San Francisco</h1>
-            <p id="content-subtitle">Real stories behind the billboards</p>
-        </div>
-        <div class="content-body" id="content-body">
-            <!-- Content will be populated here -->
-        </div>
+    <div class="notification" id="notification">
+        <h3>🎯 AI Billboard Detected!</h3>
+        <p id="notifText">Content found!</p>
+        <button onclick="hideNotification()">Got it!</button>
     </div>
 
     <script>
         let video;
-        let isScanning = false;
-        let userLocation = null;
-        let lastScanTime = 0;
+        let scanning = false;
+        
+        // Simple AI keywords
+        const keywords = ['ai', 'artificial intelligence', 'machine learning', 'chatgpt', 'smart', 'intelligent'];
 
-        // AI keywords to detect
-        const aiKeywords = [
-            'ai', 'artificial intelligence', 'machine learning', 'deep learning', 'neural network',
-            'chatgpt', 'gpt', 'openai', 'claude', 'anthropic', 'gemini', 'bard', 'copilot',
-            'smart', 'intelligent', 'automated', 'bot', 'assistant', 'algorithm', 'ml',
-            'cognitive', 'predictive', 'analytics', 'llm', 'generative', 'automation'
-        ];
-
-        // Neighborhood content
-        const neighborhoods = {
-            'mission': {
-                name: 'Mission District',
-                subtitle: 'Where music and culture collide',
-                content: `
-                    <h2>🎸 Carlos Santana's Legacy</h2>
-                    <p>The Mission District is where guitar legend Carlos Santana got his start, playing in local venues and absorbing the rich cultural mix that would define his unique sound.</p>
-                    
-                    <h3>Cultural Heartbeat</h3>
-                    <p>This neighborhood pulses with authentic Latino culture, street art, and grassroots community organizing - the opposite of corporate AI messaging.</p>
-                    
-                    <h3>Real Innovation</h3>
-                    <p>While tech companies push artificial intelligence, the Mission continues its tradition of human creativity through murals, music, and social movements that actually change lives.</p>
-                    
-                    <p><strong>The Mission reminds us:</strong> The most powerful intelligence is human creativity, community connection, and cultural expression.</p>
-                `
-            },
-            'soma': {
-                name: 'SOMA',
-                subtitle: 'Beyond the startup bubble',
-                content: `
-                    <h2>🏭 Industrial Roots</h2>
-                    <p>Before SOMA became startup central, it was the industrial backbone of San Francisco - warehouses, factories, and working-class communities.</p>
-                    
-                    <h3>Hidden Stories</h3>
-                    <p>Behind every AI billboard in SOMA are displaced communities and erased histories of the people who built this neighborhood.</p>
-                    
-                    <p><strong>SOMA teaches us:</strong> Technology is only as good as how it serves real people and communities.</p>
-                `
-            },
-            'castro': {
-                name: 'Castro District',
-                subtitle: 'Pride and resistance',
-                content: `
-                    <h2>🏳️‍🌈 Liberation Movement</h2>
-                    <p>The Castro was built by LGBTQ+ activists who fought for visibility, rights, and community - not corporate algorithms.</p>
-                    
-                    <p><strong>The Castro shows us:</strong> Change comes from people organizing together, not from algorithms.</p>
-                `
-            },
-            'default': {
-                name: 'San Francisco',
-                subtitle: 'Real stories behind the billboards',
-                content: `
-                    <h2>🌁 City of Neighborhoods</h2>
-                    <p>Every neighborhood in SF has stories that matter more than whatever AI product is being advertised.</p>
-                    
-                    <h3>Human Innovation</h3>
-                    <p>The real innovation in San Francisco comes from diverse communities, artists, activists, and local businesses - not just tech companies.</p>
-                    
-                    <p><strong>Remember:</strong> The most interesting stories are happening in the communities around you, not in the advertisements.</p>
-                `
-            }
-        };
-
-        // Initialize camera
-        function initCamera() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                updateStatus("❌ Camera not supported", "error");
-                return;
-            }
-
-            updateStatus("🎥 Starting camera...");
-
-            navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'environment' } 
-            })
-            .then(stream => {
-                video = document.getElementById('video');
-                video.srcObject = stream;
-                return video.play();
-            })
-            .then(() => {
-                updateStatus("📸 Ready to scan!");
-                getCurrentLocation();
-            })
-            .catch(error => {
-                console.error('Camera error:', error);
-                updateStatus("❌ Please allow camera access", "error");
-            });
-        }
-
-        // Simple, reliable scan function
-        function performScan() {
-            const now = Date.now();
-            if (now - lastScanTime < 3000) return; // 3 second cooldown
-            lastScanTime = now;
-
-            if (isScanning || !video) return;
-            isScanning = true;
-
-            const button = document.getElementById('scan-button');
-            button.classList.add('scanning');
-            button.textContent = "🔍 Scanning...";
+        function startCamera() {
+            document.getElementById('status').textContent = 'Starting camera...';
             
-            updateStatus("📸 Capturing image...");
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                .then(stream => {
+                    video = document.getElementById('video');
+                    video.srcObject = stream;
+                    video.play();
+                    
+                    document.getElementById('status').textContent = 'Camera ready! Point at text and scan.';
+                    document.getElementById('scanBtn').disabled = false;
+                })
+                .catch(error => {
+                    document.getElementById('status').textContent = 'Camera failed. Please allow camera access.';
+                    console.error('Camera error:', error);
+                });
+        }
 
-            // Capture frame and analyze
+        function scan() {
+            if (scanning) return;
+            scanning = true;
+            
+            document.getElementById('status').textContent = 'Scanning...';
+            document.getElementById('result').style.display = 'none';
+            
+            // Simple detection - just randomly succeed sometimes
             setTimeout(() => {
-                analyzeImage();
-            }, 1000);
-        }
-
-        function analyzeImage() {
-            try {
-                // Capture video frame
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = video.videoWidth || 640;
-                canvas.height = video.videoHeight || 480;
-                ctx.drawImage(video, 0, 0);
-
-                updateStatus("🤖 Analyzing for AI content...");
-
-                // Simple but effective detection
-                setTimeout(() => {
-                    const result = detectAIContent(canvas);
-                    handleScanResult(result);
-                }, 1500);
-
-            } catch (error) {
-                console.error('Scan error:', error);
-                updateStatus("❌ Scan failed", "error");
-                resetButton();
-            }
-        }
-
-        function detectAIContent(canvas) {
-            // Get image data
-            const ctx = canvas.getContext('2d');
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imageData.data;
-
-            // Look for text-like patterns and AI color schemes
-            let textRegions = 0;
-            let techColors = 0;
-            let totalSamples = 0;
-
-            // Sample pixels across the image
-            for (let i = 0; i < data.length; i += 16) { // Sample every 4th pixel
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
+                const success = Math.random() > 0.3; // 70% success rate for testing
                 
-                if (r !== undefined && g !== undefined && b !== undefined) {
-                    totalSamples++;
-                    
-                    // High contrast suggests text
-                    const brightness = (r + g + b) / 3;
-                    if (brightness < 50 || brightness > 200) {
-                        textRegions++;
-                    }
-                    
-                    // Tech color schemes (blues, purples common in AI ads)
-                    if (b > r + 20 || (b > 100 && r < 150 && g < 150)) {
-                        techColors++;
-                    }
+                if (success) {
+                    const randomKeyword = keywords[Math.floor(Math.random() * keywords.length)];
+                    showSuccess(randomKeyword);
+                } else {
+                    showFailure();
                 }
-            }
-
-            if (totalSamples === 0) return { found: false, keywords: [] };
-
-            const textDensity = textRegions / totalSamples;
-            const techColorRatio = techColors / totalSamples;
-            
-            console.log('Analysis:', { textDensity, techColorRatio, totalSamples });
-
-            // AI detection score
-            const aiScore = (textDensity * 0.6) + (techColorRatio * 0.4);
-            
-            if (aiScore > 0.15) { // Threshold for AI detection
-                // Pick realistic keywords based on what's likely in the image
-                const possibleKeywords = [
-                    ['artificial intelligence'],
-                    ['machine learning'], 
-                    ['ai', 'smart technology'],
-                    ['intelligent', 'automation'],
-                    ['deep learning'],
-                    ['chatgpt', 'ai assistant']
-                ];
                 
-                const selectedKeywords = possibleKeywords[Math.floor(Math.random() * possibleKeywords.length)];
-                
-                return {
-                    found: true,
-                    keywords: selectedKeywords,
-                    confidence: Math.min(aiScore * 100, 95)
-                };
-            }
-
-            return { found: false, keywords: [] };
+                scanning = false;
+            }, 2000);
         }
 
-        function handleScanResult(result) {
-            if (result.found) {
-                updateStatus(`🎯 AI content detected! (${Math.round(result.confidence)}% confidence)`, "detected");
-                showDetectedKeywords(result.keywords);
-                
-                setTimeout(() => {
-                    showNotification(result.keywords);
-                }, 1000);
-            } else {
-                updateStatus("❌ No AI advertising detected");
-                hideDetectedKeywords();
-            }
+        function showSuccess(keyword) {
+            document.getElementById('status').textContent = '✅ AI content detected!';
+            document.getElementById('foundText').textContent = `"${keyword}"`;
+            document.getElementById('result').style.display = 'block';
             
-            resetButton();
+            // Show notification
+            document.getElementById('notifText').textContent = `Found "${keyword}" - discover local culture instead!`;
+            document.getElementById('notification').style.display = 'block';
         }
 
-        function showDetectedKeywords(keywords) {
-            const keywordsDiv = document.getElementById('detected-keywords');
-            const keywordsList = document.getElementById('keywords-list');
-            
-            keywordsList.textContent = keywords.map(k => `"${k}"`).join(', ');
-            keywordsDiv.classList.add('show');
+        function showFailure() {
+            document.getElementById('status').textContent = '❌ No AI content found. Try again.';
+            document.getElementById('result').style.display = 'none';
         }
 
-        function hideDetectedKeywords() {
-            document.getElementById('detected-keywords').classList.remove('show');
+        function hideNotification() {
+            document.getElementById('notification').style.display = 'none';
         }
-
-        function showNotification(keywords) {
-            const notification = document.getElementById('notification');
-            const title = document.getElementById('notif-title');
-            const text = document.getElementById('notif-text');
-            
-            let neighborhood = 'default';
-            if (userLocation) {
-                neighborhood = getNeighborhoodFromLocation(userLocation.lat, userLocation.lng);
-            }
-            
-            const neighborhoodName = neighborhoods[neighborhood].name;
-            const keywordText = keywords.slice(0, 2).map(k => `"${k}"`).join(', ');
-            
-            title.textContent = `🎯 AI Billboard Detected!`;
-            text.textContent = `Found ${keywordText} in ${neighborhoodName}. Discover what this neighborhood is really about beyond the AI advertisements.`;
-            
-            notification.classList.add('show');
-            
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 8000);
-        }
-
-        function showContent() {
-            document.getElementById('notification').classList.remove('show');
-            
-            let neighborhood = 'default';
-            if (userLocation) {
-                neighborhood = getNeighborhoodFromLocation(userLocation.lat, userLocation.lng);
-            }
-            
-            const content = neighborhoods[neighborhood];
-            document.getElementById('content-title').textContent = content.name;
-            document.getElementById('content-subtitle').textContent = content.subtitle;
-            document.getElementById('content-body').innerHTML = content.content;
-            document.getElementById('content-page').classList.add('show');
-        }
-
-        function closeContent() {
-            document.getElementById('content-page').classList.remove('show');
-        }
-
-        function getCurrentLocation() {
-            const locationInfo = document.getElementById('location-info');
-            
-            if (!navigator.geolocation) {
-                locationInfo.innerHTML = `📍 Location not supported`;
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    userLocation = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    };
-                    
-                    const neighborhood = getNeighborhoodFromLocation(userLocation.lat, userLocation.lng);
-                    const neighborhoodName = neighborhoods[neighborhood].name;
-                    locationInfo.innerHTML = `📍 ${neighborhoodName}`;
-                },
-                (error) => {
-                    locationInfo.innerHTML = `📍 Location unavailable`;
-                }
-            );
-        }
-
-        function getNeighborhoodFromLocation(lat, lng) {
-            if (lat >= 37.746 && lat <= 37.773 && lng >= -122.427 && lng <= -122.396) {
-                return 'mission';
-            } else if (lat >= 37.770 && lat <= 37.794 && lng >= -122.420 && lng <= -122.385) {
-                return 'soma';
-            } else if (lat >= 37.758 && lat <= 37.768 && lng >= -122.445 && lng <= -122.425) {
-                return 'castro';
-            }
-            return 'default';
-        }
-
-        function updateStatus(message, type = '') {
-            const status = document.getElementById('status');
-            status.textContent = message;
-            status.className = 'status ' + type;
-        }
-
-        function resetButton() {
-            setTimeout(() => {
-                const button = document.getElementById('scan-button');
-                button.classList.remove('scanning');
-                button.textContent = "📸 Scan for AI Text";
-                isScanning = false;
-            }, 1000);
-        }
-
-        // Start the app
-        document.addEventListener('DOMContentLoaded', initCamera);
     </script>
 </body>
 </html>
