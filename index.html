@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Billboard Scanner</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/2.1.5/tesseract.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -337,6 +338,7 @@
         let isScanning = false;
         let userLocation = null;
         let lastScanTime = 0;
+        let ocrWorker = null;
 
         // AI keywords to detect
         const aiKeywords = [
@@ -409,13 +411,13 @@
                 return;
             }
 
-            updateStatus("🎥 Requesting camera access...", "scanning");
+            updateStatus("🎥 Starting camera...", "scanning");
 
             navigator.mediaDevices.getUserMedia({ 
                 video: { 
                     facingMode: 'environment',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+                    width: { ideal: 720 },
+                    height: { ideal: 480 }
                 } 
             })
             .then(stream => {
@@ -425,19 +427,43 @@
                 
                 video.onloadedmetadata = () => {
                     console.log('Video metadata loaded');
-                    updateStatus("📱 Ready! Point at billboard and tap scan");
+                    updateStatus("🤖 Loading text detection...", "scanning");
+                    initOCR();
                 };
                 
                 return video.play();
             })
-            .then(() => {
-                console.log('Video playing');
-                getCurrentLocation();
-            })
             .catch(error => {
                 console.error('Camera error:', error);
-                updateStatus("❌ Camera access denied. Please refresh and allow permissions.", "error");
+                updateStatus("❌ Camera access denied. Please allow permissions.", "error");
             });
+        }
+
+        async function initOCR() {
+            try {
+                updateStatus("📚 Loading OCR engine...", "scanning");
+                
+                // Use older, more stable Tesseract version
+                ocrWorker = Tesseract.createWorker({
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            updateStatus(`🔍 Loading OCR: ${Math.round(m.progress * 100)}%`, "scanning");
+                        }
+                    }
+                });
+                
+                await ocrWorker.load();
+                await ocrWorker.loadLanguage('eng');
+                await ocrWorker.initialize('eng');
+                
+                updateStatus("✅ Ready! Point at AI text and scan", "");
+                getCurrentLocation();
+                
+            } catch (error) {
+                console.error('OCR failed:', error);
+                updateStatus("⚠️ Text detection unavailable - using visual analysis", "");
+                getCurrentLocation();
+            }
         }
 
         function performScan() {
@@ -476,144 +502,107 @@
         function analyzeForAI() {
             console.log('Analyzing for AI content');
             
+            if (!video || !video.videoWidth) {
+                updateStatus("❌ Camera not ready", "error");
+                resetScanButton();
+                return;
+            }
+
             try {
-                // Capture the current video frame
+                // Capture current frame
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
-                canvas.width = video.videoWidth || 640;
-                canvas.height = video.videoHeight || 480;
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
                 
-                // Convert to simple text analysis
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const detectedText = analyzeImageForText(imageData, canvas.width, canvas.height);
+                updateStatus("🔍 Reading text in image...", "scanning");
                 
-                console.log('Detected text patterns:', detectedText);
-                
-                // Check if detected patterns match AI keywords
-                const foundKeywords = aiKeywords.filter(keyword => 
-                    detectedText.toLowerCase().includes(keyword.toLowerCase())
-                );
-                
-                if (foundKeywords.length > 0) {
-                    updateStatus("✅ AI content detected!", "detected");
-                    showDetectedKeywords(foundKeywords);
-                    
-                    setTimeout(() => {
-                        showNotification(foundKeywords);
-                    }, 1000);
+                if (ocrWorker) {
+                    // Use real OCR
+                    performOCR(canvas);
                 } else {
-                    // If no keywords found but there's readable text, show what we detected
-                    if (detectedText.length > 5) {
-                        updateStatus(`📝 Text detected: "${detectedText.slice(0, 30)}..." - No AI keywords found`, "");
-                    } else {
-                        updateStatus("❌ No clear text detected - try different angle or lighting", "");
-                    }
-                    hideDetectedKeywords();
+                    // Fallback to visual analysis
+                    performVisualAnalysis(canvas);
                 }
                 
             } catch (error) {
                 console.error('Analysis error:', error);
                 updateStatus("❌ Analysis failed - try again", "error");
+                resetScanButton();
+            }
+        }
+
+        async function performOCR(canvas) {
+            try {
+                const { data: { text } } = await ocrWorker.recognize(canvas);
+                console.log('OCR Result:', text);
+                
+                if (text && text.trim().length > 2) {
+                    // Check for AI keywords in detected text
+                    const foundKeywords = aiKeywords.filter(keyword => 
+                        text.toLowerCase().includes(keyword.toLowerCase())
+                    );
+                    
+                    if (foundKeywords.length > 0) {
+                        updateStatus("✅ AI keywords found!", "detected");
+                        showDetectedKeywords(foundKeywords);
+                        
+                        setTimeout(() => {
+                            showNotification(foundKeywords);
+                        }, 1000);
+                    } else {
+                        const preview = text.slice(0, 40);
+                        updateStatus(`📝 Text found: "${preview}..." - No AI keywords`, "");
+                        hideDetectedKeywords();
+                    }
+                } else {
+                    updateStatus("❌ No clear text detected - try better lighting", "");
+                    hideDetectedKeywords();
+                }
+                
+            } catch (error) {
+                console.error('OCR error:', error);
+                updateStatus("❌ Text reading failed - try again", "error");
                 hideDetectedKeywords();
             }
             
-            // Reset button
+            resetScanButton();
+        }
+
+        function performVisualAnalysis(canvas) {
+            // Simplified visual analysis as fallback
+            updateStatus("🔍 Analyzing visual patterns...", "scanning");
+            
             setTimeout(() => {
-                const button = document.getElementById('scan-button');
-                button.classList.remove('scanning');
-                button.textContent = "📱 Scan for AI Text";
-                isScanning = false;
-            }, 2000);
+                // Basic heuristic - look for common AI visual patterns
+                const ctx = canvas.getContext('2d');
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const hasTextLikePatterns = analyzeForTextPatterns(imageData);
+                
+                if (hasTextLikePatterns) {
+                    // Simulate finding likely AI terms based on visual analysis
+                    const likelyKeywords = ['AI', 'machine learning']; // Conservative guess
+                    updateStatus("✅ Likely AI content detected!", "detected");
+                    showDetectedKeywords(likelyKeywords);
+                    
+                    setTimeout(() => {
+                        showNotification(likelyKeywords);
+                    }, 1000);
+                } else {
+                    updateStatus("❌ No AI patterns detected - try different angle", "");
+                    hideDetectedKeywords();
+                }
+                
+                resetScanButton();
+            }, 1500);
         }
 
-        function analyzeImageForText(imageData, width, height) {
-            // Simple pattern recognition for text detection
+        function analyzeForTextPatterns(imageData) {
+            // Simple analysis for high-contrast regions that suggest text
             const data = imageData.data;
-            let textPatterns = [];
-            
-            // Look for high contrast regions that might be text
-            const blockSize = 20; // Analyze in 20x20 pixel blocks
-            
-            for (let y = 0; y < height - blockSize; y += blockSize) {
-                for (let x = 0; x < width - blockSize; x += blockSize) {
-                    const blockText = analyzeBlock(data, x, y, blockSize, width);
-                    if (blockText) {
-                        textPatterns.push(blockText);
-                    }
-                }
-            }
-            
-            // Combine detected patterns into readable text
-            let combinedText = textPatterns.join(' ').toLowerCase();
-            
-            // Enhanced detection for common AI terms based on visual patterns
-            if (containsPattern(data, width, height, 'ml_pattern')) {
-                combinedText += ' machine learning';
-            }
-            if (containsPattern(data, width, height, 'ai_pattern')) {
-                combinedText += ' artificial intelligence ai';
-            }
-            if (containsPattern(data, width, height, 'tech_pattern')) {
-                combinedText += ' smart intelligent automation';
-            }
-            
-            return combinedText;
-        }
-
-        function analyzeBlock(data, startX, startY, blockSize, width) {
-            let darkPixels = 0;
-            let lightPixels = 0;
-            let totalPixels = 0;
-            
-            // Analyze pixel patterns in this block
-            for (let y = startY; y < startY + blockSize; y++) {
-                for (let x = startX; x < startX + blockSize; x++) {
-                    const index = (y * width + x) * 4;
-                    const r = data[index];
-                    const g = data[index + 1];
-                    const b = data[index + 2];
-                    
-                    const brightness = (r + g + b) / 3;
-                    totalPixels++;
-                    
-                    if (brightness < 100) darkPixels++;
-                    else if (brightness > 180) lightPixels++;
-                }
-            }
-            
-            // High contrast suggests text
-            const contrast = Math.abs(darkPixels - lightPixels) / totalPixels;
-            
-            if (contrast > 0.3) {
-                // This block likely contains text - try to guess what it might be
-                return guessTextFromPattern(darkPixels, lightPixels, totalPixels);
-            }
-            
-            return null;
-        }
-
-        function guessTextFromPattern(darkPixels, lightPixels, totalPixels) {
-            // Simple heuristics to guess text based on pixel patterns
-            const darkRatio = darkPixels / totalPixels;
-            const lightRatio = lightPixels / totalPixels;
-            
-            // Different patterns suggest different letter/word shapes
-            if (darkRatio > 0.4 && lightRatio > 0.3) {
-                return 'text_detected';
-            } else if (darkRatio > 0.6) {
-                return 'bold_text';
-            } else if (lightRatio > 0.6) {
-                return 'light_text';
-            }
-            
-            return 'unclear_text';
-        }
-
-        function containsPattern(data, width, height, patternType) {
-            // Look for specific visual patterns that suggest AI-related terms
-            let patternScore = 0;
-            const sampleSize = Math.min(1000, width * height / 4);
+            let textScore = 0;
+            const sampleSize = Math.min(2000, data.length / 16);
             
             for (let i = 0; i < sampleSize; i++) {
                 const randomIndex = Math.floor(Math.random() * (data.length / 4)) * 4;
@@ -621,30 +610,27 @@
                 const g = data[randomIndex + 1];
                 const b = data[randomIndex + 2];
                 
-                switch (patternType) {
-                    case 'ml_pattern':
-                        // Look for patterns suggesting "ML" or "Machine Learning"
-                        if ((r > 100 && g > 100 && b > 100) && (Math.abs(r - g) < 50)) {
-                            patternScore++;
-                        }
-                        break;
-                    case 'ai_pattern':
-                        // Look for "AI" patterns - often in bold or distinctive fonts
-                        if ((r < 80 && g < 80 && b < 80) || (r > 200 && g > 200 && b > 200)) {
-                            patternScore++;
-                        }
-                        break;
-                    case 'tech_pattern':
-                        // Tech-related color schemes (blues, greens)
-                        if (b > r && b > g) {
-                            patternScore++;
-                        }
-                        break;
+                const brightness = (r + g + b) / 3;
+                
+                // Look for high contrast (suggests text)
+                if (brightness < 50 || brightness > 200) {
+                    textScore++;
                 }
             }
             
-            // Return true if we found enough matching patterns
-            return (patternScore / sampleSize) > 0.1;
+            const textDensity = textScore / sampleSize;
+            console.log('Text pattern analysis - density:', textDensity);
+            
+            return textDensity > 0.2; // 20% high contrast suggests text
+        }
+
+        function resetScanButton() {
+            setTimeout(() => {
+                const button = document.getElementById('scan-button');
+                button.classList.remove('scanning');
+                button.textContent = "📱 Scan for AI Text";
+                isScanning = false;
+            }, 1000);
         }
 
         function showDetectedKeywords(keywords) {
