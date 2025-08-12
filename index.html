@@ -285,11 +285,40 @@
         let worker = null;
         let isScanning = false;
 
-        // AI-related keywords to detect
+        // AI-related keywords to detect (comprehensive list)
         const aiKeywords = [
-            'AI', 'artificial intelligence', 'machine learning', 'chatgpt', 'openai',
-            'claude', 'anthropic', 'neural network', 'deep learning', 'algorithm',
-            'automation', 'smart', 'intelligent', 'bot', 'assistant', 'copilot'
+            // Core AI terms
+            'AI', 'artificial intelligence', 'machine learning', 'deep learning', 'neural network',
+            'algorithm', 'automation', 'intelligent', 'smart', 'cognitive',
+            
+            // Popular AI models/products
+            'chatgpt', 'gpt', 'openai', 'claude', 'anthropic', 'gemini', 'bard', 'copilot',
+            'midjourney', 'dall-e', 'stable diffusion', 'hugging face',
+            
+            // Technical terms
+            'LLM', 'large language model', 'generative AI', 'transformer', 'neural',
+            'NLP', 'natural language processing', 'computer vision', 'predictive',
+            'analytics', 'insights', 'data science', 'big data',
+            
+            // AI-powered phrases
+            'AI-powered', 'AI-driven', 'powered by AI', 'AI-enabled', 'AI-assisted',
+            'intelligent platform', 'smart solution', 'automated', 'self-learning',
+            
+            // Common AI assistants/bots
+            'bot', 'chatbot', 'assistant', 'virtual assistant', 'digital assistant',
+            'alexa', 'siri', 'cortana', 'google assistant',
+            
+            // Marketing buzzwords
+            'revolutionary AI', 'next-gen', 'cutting-edge', 'breakthrough',
+            'innovative AI', 'advanced AI', 'intelligent automation',
+            
+            // Business AI terms
+            'artificial', 'robotic process automation', 'RPA', 'recommendation engine',
+            'personalization', 'optimization', 'forecasting', 'prediction',
+            
+            // Emerging terms
+            'AGI', 'artificial general intelligence', 'foundation model',
+            'multimodal', 'reasoning', 'inference', 'training data'
         ];
 
         // Neighborhood content
@@ -431,14 +460,14 @@
                 canvas.height = video.videoHeight;
                 ctx.drawImage(video, 0, 0);
                 
-                updateStatus("Scanning for AI keywords...");
+                updateStatus("Analyzing text in view...");
                 
                 // OCR the image
                 const { data: { text } } = await worker.recognize(canvas);
                 
-                console.log('Detected text:', text.slice(0, 100));
+                console.log('Full detected text:', text);
                 
-                // Check for AI keywords
+                // Check for AI keywords (case insensitive)
                 const foundKeywords = aiKeywords.filter(keyword => 
                     text.toLowerCase().includes(keyword.toLowerCase())
                 );
@@ -446,27 +475,34 @@
                 const button = document.getElementById('scan-button');
                 
                 if (foundKeywords.length > 0) {
-                    // Enable button when AI text found
+                    // Show which specific keywords were found
+                    updateStatus(`🎯 AI Keywords Found: "${foundKeywords.join('", "')}" - Ready to scan!`);
+                    
                     button.disabled = false;
-                    button.textContent = `🎯 AI Text Found: ${foundKeywords[0]}! Tap to Continue →`;
+                    button.textContent = `🎯 Found: ${foundKeywords[0].toUpperCase()}! Tap to Continue →`;
                     button.style.background = "linear-gradient(135deg, #00ff88 0%, #00cc6a 100%)";
-                    updateStatus(`Found: ${foundKeywords.join(', ')}`);
+                    
+                    // Store found keywords for the notification
+                    button.dataset.foundKeywords = foundKeywords.join(', ');
+                    
                 } else {
-                    // Disable button when no AI text
+                    // No AI keywords found
                     button.disabled = true;
                     button.textContent = "🔍 No AI text detected - keep scanning...";
                     button.style.background = "linear-gradient(135deg, #666 0%, #444 100%)";
                     
-                    if (text.trim().length > 3) {
-                        updateStatus(`Detected: "${text.slice(0, 30)}..." - No AI keywords`);
+                    // Show what was actually detected for debugging
+                    const detectedText = text.trim().slice(0, 40);
+                    if (detectedText.length > 3) {
+                        updateStatus(`Detected text: "${detectedText}..." - No AI keywords found`);
                     } else {
-                        updateStatus("No clear text detected - try better lighting");
+                        updateStatus("No clear text detected - try better lighting or get closer");
                     }
                 }
                 
             } catch (error) {
                 console.error('OCR error:', error);
-                updateStatus("OCR error - falling back to manual mode");
+                updateStatus("Text recognition error - falling back to manual mode");
                 enableManualMode();
             }
         }
@@ -567,6 +603,10 @@
             const title = document.getElementById('notif-title');
             const text = document.getElementById('notif-text');
             
+            // Get the keywords that were found
+            const button = document.getElementById('scan-button');
+            const foundKeywords = button.dataset.foundKeywords || 'AI-related text';
+            
             // Determine current neighborhood
             let neighborhood = 'default';
             if (userLocation) {
@@ -576,7 +616,7 @@
             const neighborhoodName = neighborhoods[neighborhood].name;
             
             title.textContent = `🎯 AI Billboard Detected!`;
-            text.textContent = `You're in ${neighborhoodName}. Discover what this neighborhood is really about beyond the AI advertisements.`;
+            text.textContent = `Found keywords: "${foundKeywords}" in ${neighborhoodName}. Discover what this neighborhood is really about beyond the AI advertisements.`;
             
             notification.classList.add('show');
             
