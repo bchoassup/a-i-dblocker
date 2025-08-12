@@ -47,8 +47,8 @@
         height: 100%;
         object-fit: cover;
         background: #000;
-        transform: scaleX(-1); /* mirror to feel natural when framing */
       }
+      video#camera.mirrored { transform: scaleX(-1); }
 
       /* Overlay chrome */
       .overlay {
@@ -467,6 +467,7 @@
           ui.video.srcObject = stream;
           await ui.video.play().catch(() => {});
           setStatus('Camera ready');
+          updateVideoMirror();
 
           // Torch availability
           try {
@@ -639,9 +640,13 @@
           if (!vw || !vh) return;
           canvas.width = vw; canvas.height = vh;
           const ctx = canvas.getContext('2d');
-          ctx.translate(vw, 0); // un-mirror
-          ctx.scale(-1, 1);
-          ctx.drawImage(ui.video, 0, 0, vw, vh);
+          if (ui.video.classList.contains('mirrored')) {
+            ctx.translate(vw, 0); // un-mirror front camera
+            ctx.scale(-1, 1);
+            ctx.drawImage(ui.video, 0, 0, vw, vh);
+          } else {
+            ctx.drawImage(ui.video, 0, 0, vw, vh);
+          }
           canvas.toBlob(blob => {
             if (!blob) return;
             const url = URL.createObjectURL(blob);
@@ -654,6 +659,11 @@
         // Story actions
         ui.closeStory.addEventListener('click', () => { closeStory(); });
         ui.rescan.addEventListener('click', () => { closeStory(); performScan(); });
+
+        function updateVideoMirror() {
+          if (usingBackCamera) ui.video.classList.remove('mirrored');
+          else ui.video.classList.add('mirrored');
+        }
 
         // Start button
         ui.startBtn.addEventListener('click', async () => {
