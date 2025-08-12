@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Billboard Scanner</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -79,42 +80,12 @@
             50% { opacity: 1; }
         }
 
-        .controls {
+        .status {
             background: rgba(0, 0, 0, 0.7);
-            padding: 20px;
+            padding: 15px;
             border-radius: 10px;
             backdrop-filter: blur(10px);
             text-align: center;
-        }
-
-        .main-button {
-            width: 100%;
-            padding: 20px;
-            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
-            border: none;
-            border-radius: 15px;
-            color: #000;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-bottom: 15px;
-            transition: all 0.3s ease;
-            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
-        }
-
-        .main-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 255, 136, 0.4);
-        }
-
-        .main-button:active {
-            transform: translateY(0);
-        }
-
-        .status {
-            font-size: 14px;
-            opacity: 0.8;
-            margin-top: 10px;
         }
 
         .notification {
@@ -221,13 +192,16 @@
             height: 45px;
         }
 
-        .location-info {
-            background: rgba(0, 255, 136, 0.1);
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 15px;
-            font-size: 14px;
-            border: 1px solid rgba(0, 255, 136, 0.3);
+        .scanning {
+            color: #00ff88;
+        }
+
+        .detected {
+            color: #ffaa00;
+        }
+
+        .error {
+            color: #ff4444;
         }
 
         @media (max-width: 480px) {
@@ -243,19 +217,13 @@
         <div class="overlay">
             <div class="header">
                 <h1>🎯 Billboard Scanner</h1>
-                <p>Point camera at AI billboards, then tap the button!</p>
+                <p>Point camera at AI billboards to discover local culture</p>
             </div>
             
             <div class="scanner-frame"></div>
             
-            <div class="controls">
-                <button class="main-button" onclick="scanAIBillboard()">
-                    🎯 Found AI Billboard? Tap Here!
-                </button>
-                <div class="status" id="status">Camera ready - Look for AI ads!</div>
-                <div class="location-info" id="location-info">
-                    📍 Getting your location...
-                </div>
+            <div class="status">
+                <div id="status">Initializing camera...</div>
             </div>
         </div>
     </div>
@@ -278,9 +246,18 @@
     </div>
 
     <script>
-        let video;
+        let video, canvas, ctx;
+        let isScanning = false;
+        let worker;
         let userLocation = null;
-        let lastScanTime = 0;
+        let lastDetectionTime = 0;
+
+        // AI-related keywords to detect
+        const aiKeywords = [
+            'AI', 'artificial intelligence', 'machine learning', 'chatgpt', 'openai',
+            'claude', 'anthropic', 'neural network', 'deep learning', 'algorithm',
+            'automation', 'smart', 'intelligent', 'bot', 'assistant'
+        ];
 
         // Neighborhood content
         const neighborhoods = {
@@ -352,7 +329,12 @@
 
         async function initCamera() {
             try {
-                updateStatus("Requesting camera access...");
+                // Check if camera is available
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Camera not supported on this device');
+                }
+
+                updateStatus("Requesting camera access...", "scanning");
 
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
@@ -364,119 +346,154 @@
                 
                 video = document.getElementById('video');
                 video.srcObject = stream;
+                
                 await video.play();
                 
-                updateStatus("Camera ready - Look for AI ads!");
-                getCurrentLocation();
+                updateStatus("Loading text recognition...", "scanning");
+                
+                // Initialize Tesseract worker
+                worker = await Tesseract.createWorker('eng');
+                
+                updateStatus("Camera ready - Point at AI billboards!", "scanning");
+                startScanning();
                 
             } catch (error) {
                 console.error('Camera error:', error);
                 
                 let errorMessage = "Camera access issue. ";
+                
                 if (error.name === 'NotAllowedError') {
-                    errorMessage += "Please allow camera permissions and refresh.";
+                    errorMessage += "Please allow camera permissions and refresh the page.";
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage += "No camera found on this device.";
+                } else if (error.name === 'NotSupportedError') {
+                    errorMessage += "Camera not supported. Try Chrome or Safari.";
                 } else {
                     errorMessage += "Try refreshing or using a different browser.";
                 }
                 
-                updateStatus(errorMessage);
+                updateStatus(errorMessage, "error");
+                
+                // Add retry button
+                setTimeout(() => {
+                    const status = document.getElementById('status');
+                    status.innerHTML = errorMessage + '<br><button onclick="initCamera()" style="margin-top: 10px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">Try Again</button>';
+                }, 1000);
             }
         }
 
         async function getCurrentLocation() {
-            const locationInfo = document.getElementById('location-info');
-            
-            if ("geolocation" in navigator) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        userLocation = {
-                            lat: position.coords.latitude,
-                            lng: position.coords.longitude
-                        };
-                        
-                        // Show exact coordinates for debugging
-                        console.log('Your coordinates:', userLocation.lat, userLocation.lng);
-                        
-                        const neighborhood = getNeighborhoodFromLocation(userLocation.lat, userLocation.lng);
-                        const neighborhoodName = neighborhoods[neighborhood].name;
-                        
-                        // Show coordinates in the UI for debugging
-                        locationInfo.innerHTML = `📍 ${neighborhoodName}<br><small>Lat: ${userLocation.lat.toFixed(3)}, Lng: ${userLocation.lng.toFixed(3)}</small>`;
-                    },
-                    (error) => {
-                        console.log('Location error:', error);
-                        locationInfo.innerHTML = `📍 Location unavailable - showing default SF content`;
-                    },
-                    { 
-                        enableHighAccuracy: true,
-                        timeout: 15000,
-                        maximumAge: 60000
-                    }
-                );
-            } else {
-                locationInfo.innerHTML = `📍 Location not supported - showing default SF content`;
-            }
+            return new Promise((resolve) => {
+                if ("geolocation" in navigator) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            userLocation = {
+                                lat: position.coords.latitude,
+                                lng: position.coords.longitude
+                            };
+                            resolve(userLocation);
+                        },
+                        (error) => {
+                            console.log('Location error:', error);
+                            resolve(null);
+                        },
+                        { timeout: 10000 }
+                    );
+                } else {
+                    resolve(null);
+                }
+            });
         }
 
         function getNeighborhoodFromLocation(lat, lng) {
-            // More precise SF neighborhood boundaries
-            
-            // Mission District: 37.746-37.773, -122.427 to -122.396
-            if (lat >= 37.746 && lat <= 37.773 && lng >= -122.427 && lng <= -122.396) {
+            // Simple neighborhood detection based on SF coordinates
+            // Mission District: roughly 37.75-37.77, -122.42 to -122.40
+            if (lat >= 37.75 && lat <= 37.77 && lng >= -122.42 && lng <= -122.40) {
                 return 'mission';
             }
-            // SOMA: 37.770-37.794, -122.420 to -122.385
-            else if (lat >= 37.770 && lat <= 37.794 && lng >= -122.420 && lng <= -122.385) {
+            // SOMA: roughly 37.77-37.79, -122.42 to -122.39
+            else if (lat >= 37.77 && lat <= 37.79 && lng >= -122.42 && lng <= -122.39) {
                 return 'soma';
             }
-            // Castro: 37.758-37.768, -122.445 to -122.425
-            else if (lat >= 37.758 && lat <= 37.768 && lng >= -122.445 && lng <= -122.425) {
+            // Castro: roughly 37.76-37.77, -122.44 to -122.42
+            else if (lat >= 37.76 && lat <= 37.77 && lng >= -122.44 && lng <= -122.42) {
                 return 'castro';
             }
-            // Haight-Ashbury: 37.766-37.773, -122.456 to -122.440
-            else if (lat >= 37.766 && lat <= 37.773 && lng >= -122.456 && lng <= -122.440) {
-                return 'haight';
-            }
-            // Richmond: 37.775-37.785, -122.515 to -122.440
-            else if (lat >= 37.775 && lat <= 37.785 && lng >= -122.515 && lng <= -122.440) {
-                return 'richmond';
-            }
-            
             return 'default';
         }
 
-        function updateStatus(message) {
-            document.getElementById('status').textContent = message;
+        function updateStatus(message, type = '') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = type;
         }
 
-        function scanAIBillboard() {
-            // Prevent spam clicking
-            const now = Date.now();
-            if (now - lastScanTime < 3000) {
-                return;
+        function startScanning() {
+            if (isScanning) return;
+            isScanning = true;
+            
+            // Get location first
+            getCurrentLocation();
+            
+            // Scan every 3 seconds
+            setInterval(scanForText, 3000);
+        }
+
+        async function scanForText() {
+            if (!video || !worker) return;
+            
+            try {
+                // Create canvas and capture frame
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
+                
+                updateStatus("Scanning for AI keywords...", "scanning");
+                
+                // OCR the image
+                const { data: { text } } = await worker.recognize(canvas);
+                
+                // DEBUG: Show detected text (first 100 chars)
+                const detectedText = text.slice(0, 100);
+                console.log('Detected text:', detectedText);
+                
+                // Check for AI keywords
+                const foundKeywords = aiKeywords.filter(keyword => 
+                    text.toLowerCase().includes(keyword.toLowerCase())
+                );
+                
+                if (foundKeywords.length > 0) {
+                    // Prevent multiple rapid detections
+                    const now = Date.now();
+                    if (now - lastDetectionTime > 5000) { // 5 second cooldown
+                        lastDetectionTime = now;
+                        showNotification(foundKeywords);
+                        updateStatus("AI billboard detected!", "detected");
+                    }
+                } else {
+                    // Show what we detected for debugging
+                    if (detectedText.trim().length > 0) {
+                        updateStatus(`Detected: "${detectedText.trim()}" - Looking for AI keywords...`, "scanning");
+                    } else {
+                        updateStatus("No text detected - try better lighting/closer distance", "scanning");
+                    }
+                }
+                
+            } catch (error) {
+                console.error('OCR error:', error);
+                updateStatus("OCR error - try refreshing", "error");
             }
-            lastScanTime = now;
-
-            // Show notification
-            showNotification();
-            updateStatus("AI billboard detected!");
         }
 
-        function showNotification() {
+        function showNotification(keywords) {
             const notification = document.getElementById('notification');
             const title = document.getElementById('notif-title');
             const text = document.getElementById('notif-text');
             
-            // Determine current neighborhood
-            let neighborhood = 'default';
-            if (userLocation) {
-                neighborhood = getNeighborhoodFromLocation(userLocation.lat, userLocation.lng);
-            }
-            
-            const neighborhoodName = neighborhoods[neighborhood].name;
-            
             title.textContent = `🎯 AI Billboard Detected!`;
-            text.textContent = `You're in ${neighborhoodName}. Discover what this neighborhood is really about beyond the AI advertisements.`;
+            text.textContent = `Found: ${keywords.join(', ')}. Discover what this neighborhood is really about.`;
             
             notification.classList.add('show');
             
@@ -516,6 +533,16 @@
         // Initialize everything
         document.addEventListener('DOMContentLoaded', () => {
             initCamera();
+        });
+
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                isScanning = false;
+            } else if (video && worker) {
+                isScanning = false;
+                setTimeout(startScanning, 1000);
+            }
         });
     </script>
 </body>
