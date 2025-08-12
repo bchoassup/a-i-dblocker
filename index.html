@@ -535,35 +535,44 @@
 
         async function performOCR(canvas) {
             try {
+                updateStatus("🔍 Reading text...", "scanning");
                 const { data: { text } } = await ocrWorker.recognize(canvas);
-                console.log('OCR Result:', text);
+                console.log('Raw OCR Result:', text);
                 
-                if (text && text.trim().length > 2) {
-                    // Check for AI keywords in detected text
-                    const foundKeywords = aiKeywords.filter(keyword => 
-                        text.toLowerCase().includes(keyword.toLowerCase())
-                    );
+                if (text && text.trim().length > 1) {
+                    // Show exactly what was detected
+                    const detectedText = text.trim();
+                    console.log('Clean detected text:', detectedText);
+                    
+                    // Check ONLY the detected text for AI keywords
+                    const foundKeywords = [];
+                    const lowerText = detectedText.toLowerCase();
+                    
+                    for (const keyword of aiKeywords) {
+                        if (lowerText.includes(keyword.toLowerCase())) {
+                            foundKeywords.push(keyword);
+                        }
+                    }
                     
                     if (foundKeywords.length > 0) {
-                        updateStatus("✅ AI keywords found!", "detected");
+                        updateStatus(`✅ Found AI text: "${detectedText}"`, "detected");
                         showDetectedKeywords(foundKeywords);
                         
                         setTimeout(() => {
                             showNotification(foundKeywords);
                         }, 1000);
                     } else {
-                        const preview = text.slice(0, 40);
-                        updateStatus(`📝 Text found: "${preview}..." - No AI keywords`, "");
+                        updateStatus(`📝 Text found: "${detectedText}" - No AI keywords`, "");
                         hideDetectedKeywords();
                     }
                 } else {
-                    updateStatus("❌ No clear text detected - try better lighting", "");
+                    updateStatus("❌ No text detected - try better lighting/closer", "");
                     hideDetectedKeywords();
                 }
                 
             } catch (error) {
                 console.error('OCR error:', error);
-                updateStatus("❌ Text reading failed - try again", "error");
+                updateStatus("❌ Text reading failed - OCR not working", "error");
                 hideDetectedKeywords();
             }
             
@@ -571,31 +580,10 @@
         }
 
         function performVisualAnalysis(canvas) {
-            // Simplified visual analysis as fallback
-            updateStatus("🔍 Analyzing visual patterns...", "scanning");
-            
-            setTimeout(() => {
-                // Basic heuristic - look for common AI visual patterns
-                const ctx = canvas.getContext('2d');
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const hasTextLikePatterns = analyzeForTextPatterns(imageData);
-                
-                if (hasTextLikePatterns) {
-                    // Simulate finding likely AI terms based on visual analysis
-                    const likelyKeywords = ['AI', 'machine learning']; // Conservative guess
-                    updateStatus("✅ Likely AI content detected!", "detected");
-                    showDetectedKeywords(likelyKeywords);
-                    
-                    setTimeout(() => {
-                        showNotification(likelyKeywords);
-                    }, 1000);
-                } else {
-                    updateStatus("❌ No AI patterns detected - try different angle", "");
-                    hideDetectedKeywords();
-                }
-                
-                resetScanButton();
-            }, 1500);
+            // Only use this if OCR completely failed
+            updateStatus("⚠️ OCR unavailable - manual detection only", "error");
+            hideDetectedKeywords();
+            resetScanButton();
         }
 
         function analyzeForTextPatterns(imageData) {
@@ -634,10 +622,11 @@
         }
 
         function showDetectedKeywords(keywords) {
-            console.log('Showing detected keywords:', keywords);
+            console.log('Showing ONLY detected keywords:', keywords);
             const keywordsDiv = document.getElementById('detected-keywords');
             const keywordsList = document.getElementById('keywords-list');
             
+            // Show ONLY the keywords that were actually found in the text
             keywordsList.textContent = keywords.map(k => `"${k}"`).join(', ');
             keywordsDiv.classList.add('show');
         }
