@@ -340,11 +340,60 @@
         let lastScanTime = 0;
         let ocrWorker = null;
 
-        // AI keywords to detect
+        // Comprehensive AI keywords list - catches most AI advertising
         const aiKeywords = [
-            'AI', 'artificial intelligence', 'machine learning', 'deep learning',
-            'chatgpt', 'openai', 'claude', 'anthropic', 'gemini', 'bard',
-            'smart', 'intelligent', 'automated', 'AI-powered', 'bot', 'assistant'
+            // Core AI terms
+            'AI', 'artificial intelligence', 'machine learning', 'deep learning', 'neural network',
+            'neural networks', 'algorithm', 'algorithms', 'automation', 'intelligent', 'smart', 
+            'cognitive', 'neural', 'ML', 'artificial',
+            
+            // Popular AI models/products
+            'chatgpt', 'gpt', 'gpt-3', 'gpt-4', 'openai', 'claude', 'anthropic', 'gemini', 
+            'bard', 'copilot', 'midjourney', 'dall-e', 'dalle', 'stable diffusion', 
+            'hugging face', 'palm', 'llama', 'bert', 'transformer',
+            
+            // Technical AI terms
+            'LLM', 'large language model', 'generative AI', 'generative', 'transformer', 
+            'NLP', 'natural language processing', 'computer vision', 'predictive', 
+            'analytics', 'insights', 'data science', 'big data', 'foundation model',
+            'multimodal', 'reasoning', 'inference', 'training', 'model',
+            
+            // AI-powered phrases
+            'AI-powered', 'AI-driven', 'powered by AI', 'AI-enabled', 'AI-assisted',
+            'AI-enhanced', 'intelligent platform', 'smart solution', 'automated', 
+            'self-learning', 'machine-powered', 'algorithmically', 'data-driven',
+            
+            // Common AI assistants/bots
+            'bot', 'chatbot', 'assistant', 'virtual assistant', 'digital assistant',
+            'alexa', 'siri', 'cortana', 'google assistant', 'voice assistant',
+            
+            // Marketing buzzwords
+            'revolutionary AI', 'next-gen', 'cutting-edge', 'breakthrough', 
+            'innovative AI', 'advanced AI', 'intelligent automation', 'future-ready',
+            'AI revolution', 'smart tech', 'cognitive computing',
+            
+            // Business AI terms
+            'robotic process automation', 'RPA', 'recommendation engine', 'recommendations',
+            'personalization', 'optimization', 'forecasting', 'prediction', 'predictions',
+            'sentiment analysis', 'behavioral analysis', 'pattern recognition',
+            
+            // Emerging/advanced terms
+            'AGI', 'artificial general intelligence', 'superintelligence', 'consciousness',
+            'singularity', 'autonomous', 'self-driving', 'computer brain', 'digital brain',
+            
+            // Industry-specific AI
+            'fintech AI', 'healthcare AI', 'AI diagnostics', 'AI therapy', 'robo-advisor',
+            'algorithmic trading', 'fraud detection', 'risk assessment', 'credit scoring',
+            
+            // AI capabilities
+            'speech recognition', 'image recognition', 'facial recognition', 'text analysis',
+            'language translation', 'content generation', 'code generation', 'synthesis',
+            'classification', 'clustering', 'regression', 'supervised learning',
+            'unsupervised learning', 'reinforcement learning', 'transfer learning',
+            
+            // Common variations and misspellings
+            'A.I.', 'A.I', 'machinelearning', 'deeplearning', 'artificialintelligence',
+            'chatGPT', 'ChatGpt', 'CHATGPT', 'Machine Learning', 'Deep Learning'
         ];
 
         // Neighborhood content
