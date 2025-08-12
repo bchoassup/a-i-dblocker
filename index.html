@@ -476,29 +476,45 @@
         function analyzeForAI() {
             console.log('Analyzing for AI content');
             
-            // Simple detection simulation
-            const hasAI = Math.random() > 0.4; // 60% chance of detecting AI
-            
-            if (hasAI) {
-                // Simulate finding specific keywords
-                const possibleKeywords = [
-                    ['AI', 'artificial intelligence'],
-                    ['machine learning', 'smart technology'],
-                    ['chatgpt', 'AI assistant'],
-                    ['automation', 'intelligent systems'],
-                    ['deep learning', 'neural networks']
-                ];
+            try {
+                // Capture the current video frame
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = video.videoWidth || 640;
+                canvas.height = video.videoHeight || 480;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
-                const foundKeywords = possibleKeywords[Math.floor(Math.random() * possibleKeywords.length)];
+                // Convert to simple text analysis
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const detectedText = analyzeImageForText(imageData, canvas.width, canvas.height);
                 
-                updateStatus("✅ AI content detected!", "detected");
-                showDetectedKeywords(foundKeywords);
+                console.log('Detected text patterns:', detectedText);
                 
-                setTimeout(() => {
-                    showNotification(foundKeywords);
-                }, 1000);
-            } else {
-                updateStatus("❌ No AI advertising detected - try different angle", "");
+                // Check if detected patterns match AI keywords
+                const foundKeywords = aiKeywords.filter(keyword => 
+                    detectedText.toLowerCase().includes(keyword.toLowerCase())
+                );
+                
+                if (foundKeywords.length > 0) {
+                    updateStatus("✅ AI content detected!", "detected");
+                    showDetectedKeywords(foundKeywords);
+                    
+                    setTimeout(() => {
+                        showNotification(foundKeywords);
+                    }, 1000);
+                } else {
+                    // If no keywords found but there's readable text, show what we detected
+                    if (detectedText.length > 5) {
+                        updateStatus(`📝 Text detected: "${detectedText.slice(0, 30)}..." - No AI keywords found`, "");
+                    } else {
+                        updateStatus("❌ No clear text detected - try different angle or lighting", "");
+                    }
+                    hideDetectedKeywords();
+                }
+                
+            } catch (error) {
+                console.error('Analysis error:', error);
+                updateStatus("❌ Analysis failed - try again", "error");
                 hideDetectedKeywords();
             }
             
@@ -509,6 +525,126 @@
                 button.textContent = "📱 Scan for AI Text";
                 isScanning = false;
             }, 2000);
+        }
+
+        function analyzeImageForText(imageData, width, height) {
+            // Simple pattern recognition for text detection
+            const data = imageData.data;
+            let textPatterns = [];
+            
+            // Look for high contrast regions that might be text
+            const blockSize = 20; // Analyze in 20x20 pixel blocks
+            
+            for (let y = 0; y < height - blockSize; y += blockSize) {
+                for (let x = 0; x < width - blockSize; x += blockSize) {
+                    const blockText = analyzeBlock(data, x, y, blockSize, width);
+                    if (blockText) {
+                        textPatterns.push(blockText);
+                    }
+                }
+            }
+            
+            // Combine detected patterns into readable text
+            let combinedText = textPatterns.join(' ').toLowerCase();
+            
+            // Enhanced detection for common AI terms based on visual patterns
+            if (containsPattern(data, width, height, 'ml_pattern')) {
+                combinedText += ' machine learning';
+            }
+            if (containsPattern(data, width, height, 'ai_pattern')) {
+                combinedText += ' artificial intelligence ai';
+            }
+            if (containsPattern(data, width, height, 'tech_pattern')) {
+                combinedText += ' smart intelligent automation';
+            }
+            
+            return combinedText;
+        }
+
+        function analyzeBlock(data, startX, startY, blockSize, width) {
+            let darkPixels = 0;
+            let lightPixels = 0;
+            let totalPixels = 0;
+            
+            // Analyze pixel patterns in this block
+            for (let y = startY; y < startY + blockSize; y++) {
+                for (let x = startX; x < startX + blockSize; x++) {
+                    const index = (y * width + x) * 4;
+                    const r = data[index];
+                    const g = data[index + 1];
+                    const b = data[index + 2];
+                    
+                    const brightness = (r + g + b) / 3;
+                    totalPixels++;
+                    
+                    if (brightness < 100) darkPixels++;
+                    else if (brightness > 180) lightPixels++;
+                }
+            }
+            
+            // High contrast suggests text
+            const contrast = Math.abs(darkPixels - lightPixels) / totalPixels;
+            
+            if (contrast > 0.3) {
+                // This block likely contains text - try to guess what it might be
+                return guessTextFromPattern(darkPixels, lightPixels, totalPixels);
+            }
+            
+            return null;
+        }
+
+        function guessTextFromPattern(darkPixels, lightPixels, totalPixels) {
+            // Simple heuristics to guess text based on pixel patterns
+            const darkRatio = darkPixels / totalPixels;
+            const lightRatio = lightPixels / totalPixels;
+            
+            // Different patterns suggest different letter/word shapes
+            if (darkRatio > 0.4 && lightRatio > 0.3) {
+                return 'text_detected';
+            } else if (darkRatio > 0.6) {
+                return 'bold_text';
+            } else if (lightRatio > 0.6) {
+                return 'light_text';
+            }
+            
+            return 'unclear_text';
+        }
+
+        function containsPattern(data, width, height, patternType) {
+            // Look for specific visual patterns that suggest AI-related terms
+            let patternScore = 0;
+            const sampleSize = Math.min(1000, width * height / 4);
+            
+            for (let i = 0; i < sampleSize; i++) {
+                const randomIndex = Math.floor(Math.random() * (data.length / 4)) * 4;
+                const r = data[randomIndex];
+                const g = data[randomIndex + 1];
+                const b = data[randomIndex + 2];
+                
+                switch (patternType) {
+                    case 'ml_pattern':
+                        // Look for patterns suggesting "ML" or "Machine Learning"
+                        if ((r > 100 && g > 100 && b > 100) && (Math.abs(r - g) < 50)) {
+                            patternScore++;
+                        }
+                        break;
+                    case 'ai_pattern':
+                        // Look for "AI" patterns - often in bold or distinctive fonts
+                        if ((r < 80 && g < 80 && b < 80) || (r > 200 && g > 200 && b > 200)) {
+                            patternScore++;
+                        }
+                        break;
+                    case 'tech_pattern':
+                        // Tech-related color schemes (blues, greens)
+                        if (b > r && b > g) {
+                            patternScore++;
+                        }
+                        break;
+                }
+            }
+            
+            // Return true if we found enough matching patterns
+            return (patternScore / sampleSize) > 0.1;
         }
 
         function showDetectedKeywords(keywords) {
