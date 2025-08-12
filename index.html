@@ -46,7 +46,7 @@
 
         .header {
             text-align: center;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.8);
             padding: 15px;
             border-radius: 10px;
             backdrop-filter: blur(10px);
@@ -80,12 +80,58 @@
             50% { opacity: 1; }
         }
 
-        .status {
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border-radius: 10px;
+        .controls {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 15px;
             backdrop-filter: blur(10px);
+        }
+
+        .status {
             text-align: center;
+            margin-bottom: 15px;
+            font-size: 16px;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .status.scanning {
+            color: #00ff88;
+        }
+
+        .status.detected {
+            color: #ffaa00;
+            font-weight: bold;
+        }
+
+        .status.error {
+            color: #ff4444;
+        }
+
+        .detected-text {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            text-align: center;
+            display: none;
+        }
+
+        .detected-text.show {
+            display: block;
+        }
+
+        .location-info {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: center;
+            opacity: 0.8;
         }
 
         .notification {
@@ -192,16 +238,14 @@
             height: 45px;
         }
 
-        .scanning {
-            color: #00ff88;
-        }
-
-        .detected {
-            color: #ffaa00;
-        }
-
-        .error {
-            color: #ff4444;
+        .debug-info {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-top: 10px;
+            font-family: monospace;
+            word-break: break-all;
         }
 
         @media (max-width: 480px) {
@@ -216,29 +260,40 @@
         
         <div class="overlay">
             <div class="header">
-                <h1>🎯 Billboard Scanner</h1>
-                <p>Point camera at AI billboards to discover local culture</p>
+                <h1>🎯 AI Billboard Scanner</h1>
+                <p>Automatically detects AI text in real-time</p>
             </div>
             
             <div class="scanner-frame"></div>
             
-            <div class="status">
-                <div id="status">Initializing camera...</div>
+            <div class="controls">
+                <div class="status" id="status">Starting up...</div>
+                
+                <div class="detected-text" id="detected-text">
+                    <strong>🎯 AI Text Detected:</strong>
+                    <div id="found-keywords"></div>
+                </div>
+                
+                <div class="location-info" id="location-info">
+                    📍 Getting location...
+                </div>
+                
+                <div class="debug-info" id="debug-info" style="display: none;"></div>
             </div>
         </div>
     </div>
 
     <div id="notification" class="notification">
         <h3 id="notif-title">AI Billboard Detected!</h3>
-        <p id="notif-text">Discover what this neighborhood is really about</p>
+        <p id="notif-text">Local culture content loading...</p>
         <button onclick="showContent()">Explore Local Culture →</button>
     </div>
 
     <div id="content-page" class="content-page">
         <div class="content-header">
             <button class="close-btn" onclick="closeContent()">&times;</button>
-            <h1 id="content-title">Mission District</h1>
-            <p id="content-subtitle">Where music and culture collide</p>
+            <h1 id="content-title">San Francisco</h1>
+            <p id="content-subtitle">Real stories behind the billboards</p>
         </div>
         <div class="content-body" id="content-body">
             <!-- Content will be populated here -->
@@ -246,17 +301,37 @@
     </div>
 
     <script>
-        let video, canvas, ctx;
+        let video, worker;
         let isScanning = false;
-        let worker;
         let userLocation = null;
         let lastDetectionTime = 0;
+        let debugMode = true; // Enable debug logging
 
-        // AI-related keywords to detect
+        // Comprehensive AI keywords list
         const aiKeywords = [
-            'AI', 'artificial intelligence', 'machine learning', 'chatgpt', 'openai',
-            'claude', 'anthropic', 'neural network', 'deep learning', 'algorithm',
-            'automation', 'smart', 'intelligent', 'bot', 'assistant'
+            // Core terms
+            'AI', 'artificial intelligence', 'machine learning', 'deep learning', 'neural network',
+            'algorithm', 'automation', 'intelligent', 'smart', 'cognitive',
+            
+            // Popular AI products
+            'chatgpt', 'gpt', 'openai', 'claude', 'anthropic', 'gemini', 'bard', 'copilot',
+            'midjourney', 'dall-e', 'stable diffusion',
+            
+            // Technical terms
+            'LLM', 'large language model', 'generative AI', 'transformer', 'neural',
+            'NLP', 'natural language processing', 'computer vision', 'predictive',
+            'analytics', 'insights', 'data science',
+            
+            // AI-powered phrases
+            'AI-powered', 'AI-driven', 'powered by AI', 'AI-enabled', 'AI-assisted',
+            'intelligent platform', 'smart solution', 'automated', 'self-learning',
+            
+            // Assistants/bots
+            'bot', 'chatbot', 'assistant', 'virtual assistant', 'digital assistant',
+            
+            // Business terms
+            'artificial', 'robotic process automation', 'RPA', 'recommendation engine',
+            'personalization', 'optimization', 'forecasting', 'prediction'
         ];
 
         // Neighborhood content
@@ -303,9 +378,6 @@
                     <h3>Human Stories</h3>
                     <p>Every rainbow flag represents real people who organized, protested, and built a movement that changed the world through human connection.</p>
                     
-                    <h3>Authentic Community</h3>
-                    <p>While AI companies promise to "connect" people, the Castro shows what real community looks like - mutual aid, celebration, and solidarity.</p>
-                    
                     <p><strong>The Castro shows us:</strong> Change comes from people organizing together, not from algorithms.</p>
                 `
             },
@@ -319,9 +391,6 @@
                     <h3>Human Innovation</h3>
                     <p>The real innovation in San Francisco comes from diverse communities, artists, activists, and local businesses - not just tech companies.</p>
                     
-                    <h3>Look Deeper</h3>
-                    <p>Behind every AI billboard is a neighborhood with culture, history, and people worth paying attention to.</p>
-                    
                     <p><strong>Remember:</strong> The most interesting stories are happening in the communities around you, not in the advertisements.</p>
                 `
             }
@@ -329,94 +398,248 @@
 
         async function initCamera() {
             try {
-                // Check if camera is available
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error('Camera not supported on this device');
-                }
-
-                updateStatus("Requesting camera access...", "scanning");
+                updateStatus("🎥 Requesting camera access...", "scanning");
 
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
                         facingMode: 'environment',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
                     } 
                 });
                 
                 video = document.getElementById('video');
                 video.srcObject = stream;
-                
                 await video.play();
                 
-                updateStatus("Loading text recognition...", "scanning");
+                updateStatus("🤖 Initializing AI text detection...", "scanning");
                 
-                // Initialize Tesseract worker
-                worker = await Tesseract.createWorker('eng');
+                // Initialize Tesseract with proper error handling
+                await initOCR();
                 
-                updateStatus("Camera ready - Point at AI billboards!", "scanning");
-                startScanning();
+                // Get location
+                getCurrentLocation();
                 
             } catch (error) {
                 console.error('Camera error:', error);
+                updateStatus("❌ Camera access denied. Please refresh and allow camera permissions.", "error");
+            }
+        }
+
+        async function initOCR() {
+            try {
+                // Create worker with progress tracking
+                worker = await Tesseract.createWorker('eng', 1, {
+                    logger: m => {
+                        if (debugMode) {
+                            console.log('OCR:', m);
+                        }
+                        if (m.status === 'loading tesseract core') {
+                            updateStatus("📥 Loading OCR engine...", "scanning");
+                        } else if (m.status === 'initializing tesseract') {
+                            updateStatus("⚙️ Initializing text recognition...", "scanning");
+                        } else if (m.status === 'loading language traineddata') {
+                            updateStatus("📚 Loading language data...", "scanning");
+                        }
+                    }
+                });
+
+                // Configure OCR for better text detection
+                await worker.setParameters({
+                    tessedit_pageseg_mode: Tesseract.PSM.AUTO,
+                });
+
+                updateStatus("✅ Ready! Scanning for AI text...", "scanning");
+                startScanning();
                 
-                let errorMessage = "Camera access issue. ";
+            } catch (error) {
+                console.error('OCR initialization failed:', error);
+                updateStatus("❌ Text recognition failed to load. Try refreshing the page.", "error");
+            }
+        }
+
+        function startScanning() {
+            if (isScanning || !worker || !video) return;
+            isScanning = true;
+            
+            // Scan every 2 seconds
+            const scanInterval = setInterval(() => {
+                if (!isScanning) {
+                    clearInterval(scanInterval);
+                    return;
+                }
+                scanForAIText();
+            }, 2000);
+        }
+
+        async function scanForAIText() {
+            if (!video || !worker || !isScanning) return;
+            
+            try {
+                // Create canvas to capture video frame
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
                 
-                if (error.name === 'NotAllowedError') {
-                    errorMessage += "Please allow camera permissions and refresh the page.";
-                } else if (error.name === 'NotFoundError') {
-                    errorMessage += "No camera found on this device.";
-                } else if (error.name === 'NotSupportedError') {
-                    errorMessage += "Camera not supported. Try Chrome or Safari.";
-                } else {
-                    errorMessage += "Try refreshing or using a different browser.";
+                // Use video dimensions
+                canvas.width = video.videoWidth || 640;
+                canvas.height = video.videoHeight || 480;
+                
+                // Draw current video frame
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                if (debugMode) {
+                    console.log('Scanning frame:', canvas.width, 'x', canvas.height);
                 }
                 
-                updateStatus(errorMessage, "error");
+                updateStatus("🔍 Analyzing image for text...", "scanning");
                 
-                // Add retry button
+                // OCR the image
+                const { data: { text, confidence } } = await worker.recognize(canvas);
+                
+                if (debugMode) {
+                    console.log('OCR Result:', text);
+                    console.log('Confidence:', confidence);
+                    document.getElementById('debug-info').style.display = 'block';
+                    document.getElementById('debug-info').textContent = `Detected: "${text.slice(0, 100)}..." (${confidence}% confidence)`;
+                }
+                
+                // Clean up the detected text
+                const cleanText = text.toLowerCase().trim();
+                
+                if (cleanText.length < 2) {
+                    updateStatus("👀 No clear text visible - point at text", "scanning");
+                    hideDetectedText();
+                    return;
+                }
+                
+                // Check for AI keywords
+                const foundKeywords = aiKeywords.filter(keyword => 
+                    cleanText.includes(keyword.toLowerCase())
+                );
+                
+                if (foundKeywords.length > 0) {
+                    // AI keywords detected!
+                    const now = Date.now();
+                    if (now - lastDetectionTime > 3000) { // 3 second cooldown
+                        lastDetectionTime = now;
+                        
+                        updateStatus("🎯 AI keywords detected! Generating content...", "detected");
+                        showDetectedText(foundKeywords);
+                        
+                        // Trigger notification after brief delay
+                        setTimeout(() => {
+                            showNotification(foundKeywords);
+                        }, 1500);
+                    }
+                } else {
+                    // No AI keywords found
+                    const preview = text.slice(0, 30);
+                    updateStatus(`📝 Text detected: "${preview}..." - No AI keywords found`, "scanning");
+                    hideDetectedText();
+                }
+                
+            } catch (error) {
+                console.error('OCR error:', error);
+                updateStatus("⚠️ Text recognition error - retrying...", "error");
+                
+                // Retry after error
                 setTimeout(() => {
-                    const status = document.getElementById('status');
-                    status.innerHTML = errorMessage + '<br><button onclick="initCamera()" style="margin-top: 10px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">Try Again</button>';
-                }, 1000);
+                    if (isScanning) {
+                        updateStatus("🔍 Resuming scan...", "scanning");
+                    }
+                }, 2000);
             }
+        }
+
+        function showDetectedText(keywords) {
+            const detectedDiv = document.getElementById('detected-text');
+            const keywordsDiv = document.getElementById('found-keywords');
+            
+            keywordsDiv.textContent = keywords.map(k => `"${k}"`).join(', ');
+            detectedDiv.classList.add('show');
+        }
+
+        function hideDetectedText() {
+            document.getElementById('detected-text').classList.remove('show');
+        }
+
+        function showNotification(keywords) {
+            const notification = document.getElementById('notification');
+            const title = document.getElementById('notif-title');
+            const text = document.getElementById('notif-text');
+            
+            // Get current neighborhood
+            let neighborhood = 'default';
+            if (userLocation) {
+                neighborhood = getNeighborhoodFromLocation(userLocation.lat, userLocation.lng);
+            }
+            
+            const neighborhoodName = neighborhoods[neighborhood].name;
+            const keywordText = keywords.slice(0, 3).map(k => `"${k}"`).join(', ');
+            
+            title.textContent = `🎯 AI Billboard Detected!`;
+            text.textContent = `Found ${keywordText} in ${neighborhoodName}. Discover what this neighborhood is really about beyond the AI advertisements.`;
+            
+            notification.classList.add('show');
+            
+            // Auto-hide after 10 seconds
+            setTimeout(() => {
+                if (notification.classList.contains('show')) {
+                    notification.classList.remove('show');
+                }
+            }, 10000);
+        }
+
+        function showContent() {
+            document.getElementById('notification').classList.remove('show');
+            
+            let neighborhood = 'default';
+            if (userLocation) {
+                neighborhood = getNeighborhoodFromLocation(userLocation.lat, userLocation.lng);
+            }
+            
+            const content = neighborhoods[neighborhood];
+            document.getElementById('content-title').textContent = content.name;
+            document.getElementById('content-subtitle').textContent = content.subtitle;
+            document.getElementById('content-body').innerHTML = content.content;
+            document.getElementById('content-page').classList.add('show');
+        }
+
+        function closeContent() {
+            document.getElementById('content-page').classList.remove('show');
         }
 
         async function getCurrentLocation() {
-            return new Promise((resolve) => {
-                if ("geolocation" in navigator) {
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                            userLocation = {
-                                lat: position.coords.latitude,
-                                lng: position.coords.longitude
-                            };
-                            resolve(userLocation);
-                        },
-                        (error) => {
-                            console.log('Location error:', error);
-                            resolve(null);
-                        },
-                        { timeout: 10000 }
-                    );
-                } else {
-                    resolve(null);
-                }
-            });
+            const locationInfo = document.getElementById('location-info');
+            
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+                        
+                        const neighborhood = getNeighborhoodFromLocation(userLocation.lat, userLocation.lng);
+                        const neighborhoodName = neighborhoods[neighborhood].name;
+                        locationInfo.innerHTML = `📍 ${neighborhoodName} (${userLocation.lat.toFixed(3)}, ${userLocation.lng.toFixed(3)})`;
+                    },
+                    (error) => {
+                        locationInfo.innerHTML = `📍 Location unavailable - showing default SF content`;
+                    },
+                    { enableHighAccuracy: true, timeout: 15000 }
+                );
+            } else {
+                locationInfo.innerHTML = `📍 Location not supported`;
+            }
         }
 
         function getNeighborhoodFromLocation(lat, lng) {
-            // Simple neighborhood detection based on SF coordinates
-            // Mission District: roughly 37.75-37.77, -122.42 to -122.40
-            if (lat >= 37.75 && lat <= 37.77 && lng >= -122.42 && lng <= -122.40) {
+            if (lat >= 37.746 && lat <= 37.773 && lng >= -122.427 && lng <= -122.396) {
                 return 'mission';
-            }
-            // SOMA: roughly 37.77-37.79, -122.42 to -122.39
-            else if (lat >= 37.77 && lat <= 37.79 && lng >= -122.42 && lng <= -122.39) {
+            } else if (lat >= 37.770 && lat <= 37.794 && lng >= -122.420 && lng <= -122.385) {
                 return 'soma';
-            }
-            // Castro: roughly 37.76-37.77, -122.44 to -122.42
-            else if (lat >= 37.76 && lat <= 37.77 && lng >= -122.44 && lng <= -122.42) {
+            } else if (lat >= 37.758 && lat <= 37.768 && lng >= -122.445 && lng <= -122.425) {
                 return 'castro';
             }
             return 'default';
@@ -425,123 +648,21 @@
         function updateStatus(message, type = '') {
             const status = document.getElementById('status');
             status.textContent = message;
-            status.className = type;
+            status.className = 'status ' + type;
         }
 
-        function startScanning() {
-            if (isScanning) return;
-            isScanning = true;
-            
-            // Get location first
-            getCurrentLocation();
-            
-            // Scan every 3 seconds
-            setInterval(scanForText, 3000);
-        }
-
-        async function scanForText() {
-            if (!video || !worker) return;
-            
-            try {
-                // Create canvas and capture frame
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0);
-                
-                updateStatus("Scanning for AI keywords...", "scanning");
-                
-                // OCR the image
-                const { data: { text } } = await worker.recognize(canvas);
-                
-                // DEBUG: Show detected text (first 100 chars)
-                const detectedText = text.slice(0, 100);
-                console.log('Detected text:', detectedText);
-                
-                // Check for AI keywords
-                const foundKeywords = aiKeywords.filter(keyword => 
-                    text.toLowerCase().includes(keyword.toLowerCase())
-                );
-                
-                if (foundKeywords.length > 0) {
-                    // Prevent multiple rapid detections
-                    const now = Date.now();
-                    if (now - lastDetectionTime > 5000) { // 5 second cooldown
-                        lastDetectionTime = now;
-                        showNotification(foundKeywords);
-                        updateStatus("AI billboard detected!", "detected");
-                    }
-                } else {
-                    // Show what we detected for debugging
-                    if (detectedText.trim().length > 0) {
-                        updateStatus(`Detected: "${detectedText.trim()}" - Looking for AI keywords...`, "scanning");
-                    } else {
-                        updateStatus("No text detected - try better lighting/closer distance", "scanning");
-                    }
-                }
-                
-            } catch (error) {
-                console.error('OCR error:', error);
-                updateStatus("OCR error - try refreshing", "error");
-            }
-        }
-
-        function showNotification(keywords) {
-            const notification = document.getElementById('notification');
-            const title = document.getElementById('notif-title');
-            const text = document.getElementById('notif-text');
-            
-            title.textContent = `🎯 AI Billboard Detected!`;
-            text.textContent = `Found: ${keywords.join(', ')}. Discover what this neighborhood is really about.`;
-            
-            notification.classList.add('show');
-            
-            // Auto-hide after 8 seconds
-            setTimeout(() => {
-                if (notification.classList.contains('show')) {
-                    notification.classList.remove('show');
-                }
-            }, 8000);
-        }
-
-        function showContent() {
-            // Hide notification
-            document.getElementById('notification').classList.remove('show');
-            
-            // Determine neighborhood
-            let neighborhood = 'default';
-            if (userLocation) {
-                neighborhood = getNeighborhoodFromLocation(userLocation.lat, userLocation.lng);
-            }
-            
-            const content = neighborhoods[neighborhood];
-            
-            // Update content page
-            document.getElementById('content-title').textContent = content.name;
-            document.getElementById('content-subtitle').textContent = content.subtitle;
-            document.getElementById('content-body').innerHTML = content.content;
-            
-            // Show content page
-            document.getElementById('content-page').classList.add('show');
-        }
-
-        function closeContent() {
-            document.getElementById('content-page').classList.remove('show');
-        }
-
-        // Initialize everything
-        document.addEventListener('DOMContentLoaded', () => {
-            initCamera();
-        });
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initCamera);
 
         // Handle page visibility changes
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 isScanning = false;
-            } else if (video && worker) {
-                isScanning = false;
-                setTimeout(startScanning, 1000);
+            } else if (worker && video) {
+                setTimeout(() => {
+                    updateStatus("🔍 Resuming scan...", "scanning");
+                    startScanning();
+                }, 1000);
             }
         });
     </script>
