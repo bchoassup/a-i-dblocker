@@ -452,19 +452,36 @@
         }
 
         async function startCamera() {
-          const constraints = {
-            audio: false,
-            video: {
-              facingMode: usingBackCamera ? { ideal: 'environment' } : { ideal: 'user' },
-              width: { ideal: 1920 },
-              height: { ideal: 1080 },
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error('Camera API not available in this browser');
+          }
+
+          // Try preferred back camera first, then fallbacks
+          const attempts = [
+            { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
+            { video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+            { video: true, audio: false },
+          ];
+
+          let lastErr = null;
+          for (const constraints of attempts) {
+            try {
+              const s = await navigator.mediaDevices.getUserMedia(constraints);
+              stream = s;
+              ui.video.srcObject = stream;
+              await ui.video.play().catch(() => {});
+              const track = stream.getVideoTracks()[0];
+              const settings = track.getSettings ? track.getSettings() : {};
+              // Update mirror based on actual camera
+              usingBackCamera = settings.facingMode ? settings.facingMode !== 'user' : usingBackCamera;
+              updateVideoMirror();
+              setStatus('Camera ready');
+              return;
+            } catch (e) {
+              lastErr = e;
             }
-          };
-          stream = await navigator.mediaDevices.getUserMedia(constraints);
-          ui.video.srcObject = stream;
-          await ui.video.play().catch(() => {});
-          setStatus('Camera ready');
-          updateVideoMirror();
+          }
+          throw lastErr || new Error('Unable to access camera');
         }
 
         function stopCamera() {
@@ -633,14 +650,20 @@
             }
             requestLocation();
             ui.scanBtn.disabled = true;
-            await startCamera();
-            await ensureWorker();
+            // Show stage so video is in layout before starting camera (helps iOS sizing)
             ui.start.style.display = 'none';
             ui.stage.style.display = 'grid';
+            await startCamera();
+            await ensureWorker();
             setStatus('Scanning…');
           } catch (e) {
-            console.error(e);
-            alert('Camera permission is required. Please allow camera access.');
+            console.error('Camera start failed', e);
+            ui.stage.style.display = 'none';
+            ui.start.style.display = 'grid';
+            const hint = (e && e.name === 'NotAllowedError') ? 'Permission blocked. Enable camera access in browser settings.'
+              : (e && e.name === 'NotFoundError') ? 'No camera found on this device.'
+              : (e && e.message) ? e.message : 'Camera error';
+            alert(hint);
           }
         });
 
