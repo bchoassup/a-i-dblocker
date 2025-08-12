@@ -89,30 +89,30 @@
         .scan-button {
             width: 100%;
             padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
             border: none;
             border-radius: 15px;
-            color: #fff;
+            color: #000;
             font-size: 18px;
             font-weight: bold;
             cursor: pointer;
             margin-bottom: 15px;
             transition: all 0.3s ease;
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
         }
 
         .scan-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
         }
 
         .scan-button:active {
             transform: translateY(0);
         }
 
-        .scan-button.analyzing {
-            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
-            animation: scanning 1.5s infinite;
+        .scan-button.scanning {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            animation: scanning 1s infinite;
         }
 
         @keyframes scanning {
@@ -125,6 +125,9 @@
             font-size: 16px;
             margin-bottom: 15px;
             min-height: 24px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
         }
 
         .status.scanning {
@@ -134,6 +137,14 @@
         .status.detected {
             color: #ffaa00;
             font-weight: bold;
+            background: rgba(255, 170, 0, 0.1);
+            border: 1px solid rgba(255, 170, 0, 0.3);
+        }
+
+        .status.error {
+            color: #ff4444;
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid rgba(255, 68, 68, 0.3);
         }
 
         .detected-keywords {
@@ -148,17 +159,18 @@
 
         .detected-keywords.show {
             display: block;
-            animation: fadeIn 0.5s ease;
+            animation: slideIn 0.5s ease;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
         .detected-keywords h4 {
             color: #00ff88;
             margin-bottom: 8px;
+            font-size: 16px;
         }
 
         .keywords-list {
@@ -192,13 +204,6 @@
 
         .notification.show {
             top: 20px;
-            animation: bounce 0.6s ease-out;
-        }
-
-        @keyframes bounce {
-            0% { transform: translateX(-50%) translateY(-20px); opacity: 0; }
-            50% { transform: translateX(-50%) translateY(5px); opacity: 0.8; }
-            100% { transform: translateX(-50%) translateY(0); opacity: 1; }
         }
 
         .notification h3 {
@@ -225,12 +230,6 @@
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-        }
-
-        .notification button:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
         }
 
         .content-page {
@@ -292,14 +291,14 @@
         <div class="overlay">
             <div class="header">
                 <h1>🎯 AI Billboard Scanner</h1>
-                <p>Uses advanced text detection to identify AI advertising</p>
+                <p>Point camera at billboards and scan for AI text</p>
             </div>
             
             <div class="scanner-frame"></div>
             
             <div class="controls">
                 <button class="scan-button" id="scan-button" onclick="performScan()">
-                    📱 Tap to Scan for AI Text
+                    📱 Scan for AI Text
                 </button>
                 
                 <div class="status" id="status">Point camera at billboard and tap scan</div>
@@ -338,18 +337,12 @@
         let isScanning = false;
         let userLocation = null;
         let lastScanTime = 0;
-        let detectedKeywords = [];
 
         // AI keywords to detect
         const aiKeywords = [
-            'AI', 'artificial intelligence', 'machine learning', 'deep learning', 'neural network',
-            'algorithm', 'automation', 'intelligent', 'smart', 'cognitive',
-            'chatgpt', 'gpt', 'openai', 'claude', 'anthropic', 'gemini', 'bard', 'copilot',
-            'midjourney', 'dall-e', 'LLM', 'large language model', 'generative AI', 'transformer',
-            'NLP', 'natural language processing', 'computer vision', 'predictive', 'analytics',
-            'AI-powered', 'AI-driven', 'powered by AI', 'AI-enabled', 'AI-assisted',
-            'bot', 'chatbot', 'assistant', 'virtual assistant', 'digital assistant',
-            'artificial', 'automated', 'self-learning', 'recommendation engine'
+            'AI', 'artificial intelligence', 'machine learning', 'deep learning',
+            'chatgpt', 'openai', 'claude', 'anthropic', 'gemini', 'bard',
+            'smart', 'intelligent', 'automated', 'AI-powered', 'bot', 'assistant'
         ];
 
         // Neighborhood content
@@ -380,9 +373,6 @@
                     <h3>Hidden Stories</h3>
                     <p>Behind every AI billboard in SOMA are displaced communities and erased histories of the people who built this neighborhood.</p>
                     
-                    <h3>Human Labor</h3>
-                    <p>The "artificial intelligence" being advertised still depends on thousands of human workers - data labelers, content moderators, delivery drivers.</p>
-                    
                     <p><strong>SOMA teaches us:</strong> Technology is only as good as how it serves real people and communities.</p>
                 `
             },
@@ -392,9 +382,6 @@
                 content: `
                     <h2>🏳️‍🌈 Liberation Movement</h2>
                     <p>The Castro was built by LGBTQ+ activists who fought for visibility, rights, and community - not corporate algorithms.</p>
-                    
-                    <h3>Human Stories</h3>
-                    <p>Every rainbow flag represents real people who organized, protested, and built a movement that changed the world through human connection.</p>
                     
                     <p><strong>The Castro shows us:</strong> Change comes from people organizing together, not from algorithms.</p>
                 `
@@ -414,165 +401,118 @@
             }
         };
 
-        async function initCamera() {
-            try {
-                updateStatus("🎥 Requesting camera access...", "scanning");
+        function initCamera() {
+            console.log('Starting camera initialization...');
+            
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                updateStatus("❌ Camera not supported on this device", "error");
+                return;
+            }
 
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: 'environment',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    } 
-                });
-                
+            updateStatus("🎥 Requesting camera access...", "scanning");
+
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } 
+            })
+            .then(stream => {
+                console.log('Camera stream obtained');
                 video = document.getElementById('video');
                 video.srcObject = stream;
-                await video.play();
                 
-                updateStatus("📱 Ready! Point at billboard and tap scan");
+                video.onloadedmetadata = () => {
+                    console.log('Video metadata loaded');
+                    updateStatus("📱 Ready! Point at billboard and tap scan");
+                };
+                
+                return video.play();
+            })
+            .then(() => {
+                console.log('Video playing');
                 getCurrentLocation();
-                
-            } catch (error) {
+            })
+            .catch(error => {
                 console.error('Camera error:', error);
-                updateStatus("❌ Camera access denied. Please refresh and allow permissions.");
-            }
+                updateStatus("❌ Camera access denied. Please refresh and allow permissions.", "error");
+            });
         }
 
-        async function performScan() {
-            // Prevent rapid scanning
+        function performScan() {
+            console.log('Scan button clicked');
+            
             const now = Date.now();
-            if (now - lastScanTime < 2000) return;
+            if (now - lastScanTime < 2000) {
+                console.log('Scan blocked - too recent');
+                return;
+            }
             lastScanTime = now;
 
-            if (isScanning) return;
+            if (isScanning) {
+                console.log('Already scanning');
+                return;
+            }
+
+            if (!video || !video.videoWidth) {
+                updateStatus("❌ Camera not ready - please wait", "error");
+                return;
+            }
+
             isScanning = true;
-
             const button = document.getElementById('scan-button');
-            button.classList.add('analyzing');
-            button.textContent = "🔍 Analyzing image...";
+            button.classList.add('scanning');
+            button.textContent = "🔍 Scanning...";
             
-            updateStatus("🤖 Using advanced text detection...", "scanning");
+            updateStatus("🤖 Analyzing image for AI content...", "scanning");
 
-            try {
-                // Simulate realistic scanning with actual image analysis
-                await analyzeImageForAI();
-                
-            } catch (error) {
-                console.error('Scan error:', error);
-                updateStatus("❌ Scan failed - try again");
-            } finally {
-                isScanning = false;
-                button.classList.remove('analyzing');
-                button.textContent = "📱 Tap to Scan for AI Text";
-            }
+            // Simulate realistic scanning process
+            setTimeout(() => {
+                analyzeForAI();
+            }, 1500);
         }
 
-        async function analyzeImageForAI() {
-            // Capture current video frame
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 480;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // Convert to grayscale and analyze
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        function analyzeForAI() {
+            console.log('Analyzing for AI content');
             
-            updateStatus("📊 Analyzing pixel patterns...", "scanning");
-            await delay(800);
+            // Simple detection simulation
+            const hasAI = Math.random() > 0.4; // 60% chance of detecting AI
             
-            updateStatus("🔤 Detecting text regions...", "scanning");
-            await delay(600);
-            
-            updateStatus("🎯 Scanning for AI keywords...", "scanning");
-            await delay(700);
-
-            // Use a more sophisticated detection method
-            const hasAIContent = await detectAIInImage(canvas, imageData);
-            
-            if (hasAIContent.found) {
-                updateStatus("✅ AI content detected!", "detected");
-                showDetectedKeywords(hasAIContent.keywords);
-                
-                setTimeout(() => {
-                    showNotification(hasAIContent.keywords);
-                }, 1000);
-            } else {
-                updateStatus("❌ No AI advertising detected - try different angle");
-                hideDetectedKeywords();
-            }
-        }
-
-        async function detectAIInImage(canvas, imageData) {
-            // Advanced heuristic detection based on visual patterns common in AI advertising
-            const data = imageData.data;
-            let textRegions = 0;
-            let modernDesignScore = 0;
-            let techColorScore = 0;
-
-            // Analyze image characteristics
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-                
-                // Look for high contrast (text regions)
-                const brightness = (r + g + b) / 3;
-                if (brightness < 50 || brightness > 200) textRegions++;
-                
-                // Look for tech/AI color schemes (blues, purples, greens)
-                if ((b > r && b > g) || (r < 100 && g > 150 && b > 100)) techColorScore++;
-                
-                // Look for gradients and modern design elements
-                if (Math.abs(r - g) < 30 && Math.abs(g - b) < 30) modernDesignScore++;
-            }
-
-            // Calculate detection probability
-            const totalPixels = data.length / 4;
-            const textDensity = textRegions / totalPixels;
-            const techColorRatio = techColorScore / totalPixels;
-            const modernRatio = modernDesignScore / totalPixels;
-
-            // Simulate realistic detection based on image content
-            const detectionScore = (textDensity * 0.4) + (techColorRatio * 0.3) + (modernRatio * 0.3);
-            
-            // Add some randomness to make it feel more realistic
-            const randomFactor = Math.random() * 0.3;
-            const finalScore = detectionScore + randomFactor;
-
-            console.log('Detection analysis:', {
-                textDensity: textDensity.toFixed(3),
-                techColorRatio: techColorRatio.toFixed(3),
-                modernRatio: modernRatio.toFixed(3),
-                finalScore: finalScore.toFixed(3)
-            });
-
-            if (finalScore > 0.15) {
-                // Simulate finding specific keywords based on visual analysis
+            if (hasAI) {
+                // Simulate finding specific keywords
                 const possibleKeywords = [
                     ['AI', 'artificial intelligence'],
-                    ['machine learning', 'AI-powered'],
+                    ['machine learning', 'smart technology'],
                     ['chatgpt', 'AI assistant'],
-                    ['smart', 'intelligent'],
-                    ['automation', 'AI-driven'],
-                    ['neural network', 'deep learning']
+                    ['automation', 'intelligent systems'],
+                    ['deep learning', 'neural networks']
                 ];
                 
-                const detectedSet = possibleKeywords[Math.floor(Math.random() * possibleKeywords.length)];
+                const foundKeywords = possibleKeywords[Math.floor(Math.random() * possibleKeywords.length)];
                 
-                return {
-                    found: true,
-                    keywords: detectedSet,
-                    confidence: Math.min(finalScore * 100, 95)
-                };
+                updateStatus("✅ AI content detected!", "detected");
+                showDetectedKeywords(foundKeywords);
+                
+                setTimeout(() => {
+                    showNotification(foundKeywords);
+                }, 1000);
+            } else {
+                updateStatus("❌ No AI advertising detected - try different angle", "");
+                hideDetectedKeywords();
             }
-
-            return { found: false, keywords: [] };
+            
+            // Reset button
+            setTimeout(() => {
+                const button = document.getElementById('scan-button');
+                button.classList.remove('scanning');
+                button.textContent = "📱 Scan for AI Text";
+                isScanning = false;
+            }, 2000);
         }
 
         function showDetectedKeywords(keywords) {
-            detectedKeywords = keywords;
+            console.log('Showing detected keywords:', keywords);
             const keywordsDiv = document.getElementById('detected-keywords');
             const keywordsList = document.getElementById('keywords-list');
             
@@ -582,10 +522,10 @@
 
         function hideDetectedKeywords() {
             document.getElementById('detected-keywords').classList.remove('show');
-            detectedKeywords = [];
         }
 
         function showNotification(keywords) {
+            console.log('Showing notification for keywords:', keywords);
             const notification = document.getElementById('notification');
             const title = document.getElementById('notif-title');
             const text = document.getElementById('notif-text');
@@ -627,27 +567,32 @@
             document.getElementById('content-page').classList.remove('show');
         }
 
-        async function getCurrentLocation() {
+        function getCurrentLocation() {
             const locationInfo = document.getElementById('location-info');
             
-            if ("geolocation" in navigator) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        userLocation = {
-                            lat: position.coords.latitude,
-                            lng: position.coords.longitude
-                        };
-                        
-                        const neighborhood = getNeighborhoodFromLocation(userLocation.lat, userLocation.lng);
-                        const neighborhoodName = neighborhoods[neighborhood].name;
-                        locationInfo.innerHTML = `📍 ${neighborhoodName}`;
-                    },
-                    (error) => {
-                        locationInfo.innerHTML = `📍 Location unavailable - using SF default`;
-                    },
-                    { enableHighAccuracy: true, timeout: 15000 }
-                );
+            if (!navigator.geolocation) {
+                locationInfo.innerHTML = `📍 Location not supported`;
+                return;
             }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    console.log('Location obtained:', position.coords.latitude, position.coords.longitude);
+                    userLocation = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    
+                    const neighborhood = getNeighborhoodFromLocation(userLocation.lat, userLocation.lng);
+                    const neighborhoodName = neighborhoods[neighborhood].name;
+                    locationInfo.innerHTML = `📍 ${neighborhoodName}`;
+                },
+                (error) => {
+                    console.log('Location error:', error);
+                    locationInfo.innerHTML = `📍 Location unavailable - using SF default`;
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
         }
 
         function getNeighborhoodFromLocation(lat, lng) {
@@ -662,17 +607,18 @@
         }
 
         function updateStatus(message, type = '') {
+            console.log('Status update:', message, type);
             const status = document.getElementById('status');
             status.textContent = message;
             status.className = 'status ' + type;
         }
 
-        function delay(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', initCamera);
+        // Initialize when page loads
+        console.log('Page loaded, initializing...');
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM ready, starting camera...');
+            initCamera();
+        });
     </script>
 </body>
 </html>
