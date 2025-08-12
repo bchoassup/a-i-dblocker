@@ -455,6 +455,10 @@
                 // OCR the image
                 const { data: { text } } = await worker.recognize(canvas);
                 
+                // DEBUG: Show detected text (first 100 chars)
+                const detectedText = text.slice(0, 100);
+                console.log('Detected text:', detectedText);
+                
                 // Check for AI keywords
                 const foundKeywords = aiKeywords.filter(keyword => 
                     text.toLowerCase().includes(keyword.toLowerCase())
@@ -469,12 +473,17 @@
                         updateStatus("AI billboard detected!", "detected");
                     }
                 } else {
-                    updateStatus("Scanning... point at AI billboards", "scanning");
+                    // Show what we detected for debugging
+                    if (detectedText.trim().length > 0) {
+                        updateStatus(`Detected: "${detectedText.trim()}" - Looking for AI keywords...`, "scanning");
+                    } else {
+                        updateStatus("No text detected - try better lighting/closer distance", "scanning");
+                    }
                 }
                 
             } catch (error) {
                 console.error('OCR error:', error);
-                updateStatus("Scanning...", "scanning");
+                updateStatus("OCR error - try refreshing", "error");
             }
         }
 
