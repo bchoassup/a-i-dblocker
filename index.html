@@ -122,6 +122,51 @@
         pointer-events: none;
       }
 
+      .detected-panel {
+        position: absolute;
+        top: calc(env(safe-area-inset-top, 12px) + 48px);
+        left: 50%; transform: translateX(-50%);
+        width: min(92vw, 720px);
+        background: var(--glass);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 8px 10px;
+        backdrop-filter: blur(6px);
+        font-size: 12px;
+      }
+      .detected-panel #detectedText { max-height: 84px; overflow: auto; color: #ddd; }
+
+      .toast {
+        position: absolute;
+        left: 50%; transform: translateX(-50%);
+        top: calc(env(safe-area-inset-top, 12px) + 8px);
+        background: #0f2a24;
+        color: #c9fff3;
+        border: 1px solid #1f574c;
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 12px;
+        display: none;
+        z-index: 5;
+      }
+
+      .story-overlay {
+        position: fixed; inset: 0; display: none;
+        background: radial-gradient(200px 200px at 80% 0%, rgba(0,224,184,0.15), rgba(0,0,0,0)) , #0b0b0b;
+        color: var(--fg);
+        overflow: auto;
+        padding: calc(env(safe-area-inset-top, 16px) + 16px) 18px calc(env(safe-area-inset-bottom, 16px) + 24px);
+      }
+      .story-card {
+        max-width: 860px; margin: 0 auto;
+        background: #101010; border: 1px solid var(--border);
+        border-radius: 16px; padding: 16px;
+      }
+      .story-card h2 { margin: 6px 0 8px; font-size: 22px; }
+      .story-card p { color: var(--muted); line-height: 1.55; }
+      .story-actions { display: flex; gap: 10px; margin-top: 12px; }
+      .btn { background: #1a1a1a; color: var(--fg); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; font-size: 14px; cursor: pointer; }
+
       /* Result card */
       .result {
         position: absolute;
@@ -199,17 +244,35 @@
         <div class="scan-frame">
           <div class="scan-dot" aria-hidden="true"></div>
         </div>
+        <div id="toast" class="toast" role="status" aria-live="polite"></div>
+        <div id="detectedPanel" class="detected-panel" hidden>
+          <div class="pill">Detected text</div>
+          <div id="detectedText"></div>
+        </div>
       </div>
 
       <section id="result" class="result" role="dialog" aria-modal="false"></section>
 
       <div class="hud">
-        <button id="toggleScan" class="control" aria-pressed="true">⏸️ Pause</button>
+        <button id="scanBtn" class="control">🔍 Scan</button>
         <button id="torch" class="control" disabled>🔦 Torch</button>
         <button id="flip" class="control">🔁 Flip</button>
         <button id="snapshot" class="control">📸 Save</button>
       </div>
     </main>
+
+    <section id="story" class="story-overlay" role="dialog" aria-modal="true" aria-labelledby="storyTitle">
+      <div class="story-card">
+        <div class="pill" id="storyPill">🌆 Neighborhood story</div>
+        <h2 id="storyTitle"></h2>
+        <p id="storyBody"></p>
+        <p id="storyLinkWrap"></p>
+        <div class="story-actions">
+          <button id="closeStory" class="btn">Back to scanner</button>
+          <button id="rescan" class="btn">Scan again</button>
+        </div>
+      </div>
+    </section>
 
     <!-- Tesseract.js (OCR) -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
@@ -223,23 +286,32 @@
           canvas: document.getElementById('buffer'),
           status: document.getElementById('status'),
           result: document.getElementById('result'),
-          toggleScan: document.getElementById('toggleScan'),
+          scanBtn: document.getElementById('scanBtn'),
           torch: document.getElementById('torch'),
           flip: document.getElementById('flip'),
           snapshot: document.getElementById('snapshot'),
+          toast: document.getElementById('toast'),
+          detectedPanel: document.getElementById('detectedPanel'),
+          detectedText: document.getElementById('detectedText'),
+          story: document.getElementById('story'),
+          storyTitle: document.getElementById('storyTitle'),
+          storyBody: document.getElementById('storyBody'),
+          storyLinkWrap: document.getElementById('storyLinkWrap'),
+          closeStory: document.getElementById('closeStory'),
+          rescan: document.getElementById('rescan'),
         };
 
-        // Keywords to flag
-        const aiKeywordPatterns = [
-          /\b(?:chat\s*g[pt]t|chatg[pt]t|gpt)(?:[-\s]*\d+)?\b/i,
-          /\b(ai|a\.i\.)\b/i,
-          /\bartificial\s+intelligence\b/i,
-          /\bmachine\s+learning\b/i,
-          /\bdeep\s+learning\b/i,
-          /\bneural\s+net(work|s)?\b/i,
-          /\b(openai|bard|claude|copilot|gemini|llm|diffusion)\b/i,
-          /\bgenerative\b/i,
+        // Keywords to flag (50+ common AI terms/brands/phrases)
+        const aiKeywords = [
+          'ai','artificial intelligence','machine learning','deep learning','neural network','neural networks','llm','large language model','large language models','transformer','transformers','diffusion','stable diffusion','generative','foundation model','foundation models','prompt','prompting','prompt engineering','automation','automated','autonomous','autopilot','smart','intelligent','algorithm','algorithmic','data science','predictive','prediction','predictive analytics','analytics','computer vision','image recognition','ocr','speech recognition','voice recognition','nlp','natural language processing','reinforcement learning','supervised learning','unsupervised learning','model','models','chatbot','chat bot','chatbots','virtual assistant','assistant','copilot','co-pilot','chatgpt','gpt','gpt-4','gpt-3.5','openai','claude','anthropic','gemini','bard','palm','llama','midjourney','dall-e','deepfake','deepfakes','synthetic media','recommendation engine','personalization','forecasting','optimization','robotics','robot','autonomous vehicle','self-driving','ai powered','ai-powered'
+        ];
+        const aiExtraRegexes = [
+          /\b(?:chat\s*g[pt]t|chatg[pt]t|gpt)(?:[-\s]*\d+(?:\.\d+)?)?\b/i,
           /\bai[-\s]?powered\b/i,
+        ];
+        const aiRegexes = [
+          ...aiKeywords.map(k => new RegExp(`\\b${k.replace(/[-/\\^$*+?.()|[\]{}]/g, r => `\\${r}`).replace(/\s+/g,'\\s+') }\\b`, 'i')),
+          ...aiExtraRegexes,
         ];
 
         // SF neighborhood centers and short stories
@@ -287,9 +359,17 @@
           {
             id: 'soma', name: 'SoMa', center: [37.7786, -122.4059],
             story: {
-              title: "South of Market club culture",
-              text: "DIY warehouses and underground clubs seeded electronic scenes that rewired Bay Area nightlife.",
-              link: "https://grayarea.org/",
+              title: "SoMa's industrial spine",
+              text: "Foundries and factories once defined SoMa—rail spurs and warehouses powering Bay Area industry before the loft boom.",
+              link: "https://www.foundsf.org/",
+            },
+          },
+          {
+            id: 'castro', name: 'Castro', center: [37.7609, -122.4350],
+            story: {
+              title: "LGBTQ+ activism in the Castro",
+              text: "From Harvey Milk's camera shop to Pride parades, the Castro is a living archive of queer resilience and joy.",
+              link: "https://www.glbthistory.org/",
             },
           },
           {
@@ -333,13 +413,10 @@
 
         let ocrWorker = null;
         let stream = null;
-        let scanning = true;
         let usingBackCamera = true;
-        let lastScanTs = 0;
         let lastText = '';
         let lastPosition = null;
 
-        const SCAN_INTERVAL_MS = 1400;
         const TARGET_CANVAS_WIDTH = 720; // resized for OCR
 
         function setStatus(text) {
@@ -457,12 +534,16 @@
           return { rect, width: TARGET_CANVAS_WIDTH, height: ch };
         }
 
-        function containsAIKeyword(text) {
-          if (!text) return false;
-          for (const rx of aiKeywordPatterns) {
-            if (rx.test(text)) return true;
+        function detectAIKeywords(text) {
+          if (!text) return [];
+          const found = new Set();
+          for (const rx of aiRegexes) {
+            const m = text.match(rx);
+            if (m) {
+              found.add((m[0] || '').trim());
+            }
           }
-          return false;
+          return Array.from(found);
         }
 
         function renderNeighborhoodCard(textFound) {
@@ -476,37 +557,52 @@
           setResultCard({ title, bodyHtml });
         }
 
-        async function scanLoop() {
-          if (!scanning || !stream) return;
-          const now = performance.now();
-          if (now - lastScanTs < SCAN_INTERVAL_MS) return;
-          lastScanTs = now;
+        function showToast(message) {
+          ui.toast.textContent = message;
+          ui.toast.style.display = 'inline-flex';
+          clearTimeout(showToast._t);
+          showToast._t = setTimeout(() => { ui.toast.style.display = 'none'; }, 2600);
+        }
 
+        function openStory(neighborhood, keywords) {
+          ui.storyTitle.textContent = `${neighborhood.name}: ${neighborhood.story.title}`;
+          ui.storyBody.textContent = neighborhood.story.text;
+          ui.storyLinkWrap.innerHTML = `<a href="${neighborhood.story.link}" target="_blank" rel="noopener">Learn more →</a>`;
+          ui.story.style.display = 'block';
+          ui.story.scrollTop = 0;
+        }
+
+        function closeStory() { ui.story.style.display = 'none'; }
+
+        async function performScan() {
+          if (!stream) return;
+          ui.scanBtn.disabled = true;
+          setStatus('Scanning…');
           try {
             const worker = await ensureWorker();
             const dims = downscaleAndCrop();
-            if (!dims) return;
+            if (!dims) { setStatus('Camera not ready'); return; }
             const { data: { text } } = await worker.recognize(ui.canvas);
             const normalized = (text || '').replace(/\s+/g, ' ').trim();
             lastText = normalized;
-            setStatus(normalized ? `Text detected (${normalized.slice(0, 40)}${normalized.length > 40 ? '…' : ''})` : 'Scanning…');
-            const hit = aiKeywordPatterns.find(rx => rx.test(normalized));
-            if (hit) {
-              scanning = false;
-              ui.toggleScan.textContent = '▶️ Resume';
-              renderNeighborhoodCard(hit.source?.replace(/\\b/g, '') || 'AI');
-              setStatus('AI keyword found');
+            ui.detectedPanel.hidden = !normalized;
+            ui.detectedText.textContent = normalized || '';
+            if (normalized) setStatus(`Text found (${normalized.slice(0, 50)}${normalized.length>50?'…':''})`);
+            const hits = detectAIKeywords(normalized);
+            if (hits.length > 0) {
+              const n = nearestNeighborhood(lastPosition);
+              showToast(`AI keywords detected: ${hits.slice(0,3).join(', ')} • ${n.name}`);
+              openStory(n, hits);
+            } else {
+              showToast('No AI keywords detected');
             }
           } catch (err) {
             console.error(err);
-            setStatus('Scan error (will retry)');
+            setStatus('Scan error');
+            showToast('Scan error');
+          } finally {
+            ui.scanBtn.disabled = false;
           }
-        }
-
-        // Animation frame scheduler with throttling
-        function onFrame() {
-          if (scanning) scanLoop();
-          requestAnimationFrame(onFrame);
         }
 
         // Geolocation
@@ -524,11 +620,7 @@
         }
 
         // Controls
-        ui.toggleScan.addEventListener('click', () => {
-          scanning = !scanning;
-          ui.toggleScan.textContent = scanning ? '⏸️ Pause' : '▶️ Resume';
-          if (scanning) hideResultCard();
-        });
+        ui.scanBtn.addEventListener('click', () => { hideResultCard(); performScan(); });
 
         ui.torch.addEventListener('click', async () => {
           const active = ui.torch.dataset.active === 'true';
@@ -559,6 +651,10 @@
           }, 'image/jpeg', 0.9);
         });
 
+        // Story actions
+        ui.closeStory.addEventListener('click', () => { closeStory(); });
+        ui.rescan.addEventListener('click', () => { closeStory(); performScan(); });
+
         // Start button
         ui.startBtn.addEventListener('click', async () => {
           try {
@@ -588,8 +684,52 @@
           if (ocrWorker) { ocrWorker.terminate?.(); ocrWorker = null; }
         });
 
-        // Start RAF
+        // Minimal RAF to keep UI responsive on some browsers
+        function onFrame() { requestAnimationFrame(onFrame); }
         requestAnimationFrame(onFrame);
+
+        // Offline support via inline Service Worker (cache-after-first-load)
+        async function registerSW() {
+          if (!('serviceWorker' in navigator)) return;
+          try {
+            const swCode = `
+              const CACHE = 'ai-billboard-v1';
+              const ASSETS = [
+                './', './index.html',
+                'https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js',
+                'https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/worker.min.js',
+                'https://cdn.jsdelivr.net/npm/tesseract.js-core@3.0.2/tesseract-core.wasm.js',
+                'https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz'
+              ];
+              self.addEventListener('install', event => {
+                event.waitUntil(
+                  caches.open(CACHE).then(cache => cache.addAll(ASSETS).catch(() => {}))
+                );
+                self.skipWaiting();
+              });
+              self.addEventListener('activate', event => {
+                event.waitUntil(self.clients.claim());
+              });
+              self.addEventListener('fetch', event => {
+                const req = event.request;
+                event.respondWith(
+                  caches.match(req).then(cached => cached || fetch(req).then(resp => {
+                    const copy = resp.clone();
+                    caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+                    return resp;
+                  }).catch(() => caches.match('./')))
+                );
+              });
+            `;
+            const blob = new Blob([swCode], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            await navigator.serviceWorker.register(url, { scope: './' });
+            // Do not revoke URL; keep for lifetime of page
+          } catch (e) {
+            console.info('ServiceWorker not registered', e);
+          }
+        }
+        registerSW();
       })();
     </script>
   </body>
