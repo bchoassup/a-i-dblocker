@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Billboard Scanner</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -250,8 +249,8 @@
             <div class="scanner-frame"></div>
             
             <div class="controls">
-                <button class="main-button" id="scan-button" onclick="scanAIBillboard()" disabled>
-                    🔍 Scanning for AI text...
+                <button class="main-button" onclick="scanAIBillboard()">
+                    🎯 Found AI Billboard? Tap Here!
                 </button>
                 <div class="status" id="status">Camera ready - Look for AI ads!</div>
                 <div class="location-info" id="location-info">
@@ -282,44 +281,6 @@
         let video;
         let userLocation = null;
         let lastScanTime = 0;
-        let worker = null;
-        let isScanning = false;
-
-        // AI-related keywords to detect (comprehensive list)
-        const aiKeywords = [
-            // Core AI terms
-            'AI', 'artificial intelligence', 'machine learning', 'deep learning', 'neural network',
-            'algorithm', 'automation', 'intelligent', 'smart', 'cognitive',
-            
-            // Popular AI models/products
-            'chatgpt', 'gpt', 'openai', 'claude', 'anthropic', 'gemini', 'bard', 'copilot',
-            'midjourney', 'dall-e', 'stable diffusion', 'hugging face',
-            
-            // Technical terms
-            'LLM', 'large language model', 'generative AI', 'transformer', 'neural',
-            'NLP', 'natural language processing', 'computer vision', 'predictive',
-            'analytics', 'insights', 'data science', 'big data',
-            
-            // AI-powered phrases
-            'AI-powered', 'AI-driven', 'powered by AI', 'AI-enabled', 'AI-assisted',
-            'intelligent platform', 'smart solution', 'automated', 'self-learning',
-            
-            // Common AI assistants/bots
-            'bot', 'chatbot', 'assistant', 'virtual assistant', 'digital assistant',
-            'alexa', 'siri', 'cortana', 'google assistant',
-            
-            // Marketing buzzwords
-            'revolutionary AI', 'next-gen', 'cutting-edge', 'breakthrough',
-            'innovative AI', 'advanced AI', 'intelligent automation',
-            
-            // Business AI terms
-            'artificial', 'robotic process automation', 'RPA', 'recommendation engine',
-            'personalization', 'optimization', 'forecasting', 'prediction',
-            
-            // Emerging terms
-            'AGI', 'artificial general intelligence', 'foundation model',
-            'multimodal', 'reasoning', 'inference', 'training data'
-        ];
 
         // Neighborhood content
         const neighborhoods = {
@@ -405,102 +366,20 @@
                 video.srcObject = stream;
                 await video.play();
                 
-                updateStatus("Loading text recognition...");
-                
-                // Simple OCR initialization (like before)
-                try {
-                    worker = await Tesseract.createWorker('eng');
-                    updateStatus("Ready - Point at AI billboards!");
-                    startScanning();
-                } catch (ocrError) {
-                    console.error('OCR init error:', ocrError);
-                    updateStatus("OCR unavailable - using manual mode");
-                    enableManualMode();
-                }
-                
+                updateStatus("Camera ready - Look for AI ads!");
                 getCurrentLocation();
                 
             } catch (error) {
                 console.error('Camera error:', error);
-                updateStatus("Camera access issue. Please allow permissions and refresh.");
-            }
-        }
-
-        function enableManualMode() {
-            const button = document.getElementById('scan-button');
-            button.disabled = false;
-            button.textContent = "🎯 Spotted AI Billboard? Tap Here!";
-            button.style.background = "linear-gradient(135deg, #00ff88 0%, #00cc6a 100%)";
-            
-            // Clear any fake data
-            button.dataset.foundKeywords = "";
-            
-            updateStatus("Manual mode: Tap button when you see AI advertising");
-        }
-
-        function startScanning() {
-            if (isScanning || !worker) return;
-            isScanning = true;
-            
-            // Scan every 3 seconds
-            setInterval(scanForAIText, 3000);
-        }
-
-        async function scanForAIText() {
-            if (!video || !worker || !isScanning) return;
-            
-            try {
-                // Create canvas and capture frame
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0);
                 
-                updateStatus("Analyzing text in view...");
-                
-                // OCR the image
-                const { data: { text } } = await worker.recognize(canvas);
-                
-                console.log('Full detected text:', text);
-                
-                // Check for AI keywords (case insensitive)
-                const foundKeywords = aiKeywords.filter(keyword => 
-                    text.toLowerCase().includes(keyword.toLowerCase())
-                );
-                
-                const button = document.getElementById('scan-button');
-                
-                if (foundKeywords.length > 0) {
-                    // Show which specific keywords were found
-                    updateStatus(`🎯 AI Keywords Found: "${foundKeywords.join('", "')}" - Ready to scan!`);
-                    
-                    button.disabled = false;
-                    button.textContent = `🎯 Found: ${foundKeywords[0].toUpperCase()}! Tap to Continue →`;
-                    button.style.background = "linear-gradient(135deg, #00ff88 0%, #00cc6a 100%)";
-                    
-                    // Store found keywords for the notification
-                    button.dataset.foundKeywords = foundKeywords.join(', ');
-                    
+                let errorMessage = "Camera access issue. ";
+                if (error.name === 'NotAllowedError') {
+                    errorMessage += "Please allow camera permissions and refresh.";
                 } else {
-                    // No AI keywords found
-                    button.disabled = true;
-                    button.textContent = "🔍 No AI text detected - keep scanning...";
-                    button.style.background = "linear-gradient(135deg, #666 0%, #444 100%)";
-                    
-                    // Show what was actually detected for debugging
-                    const detectedText = text.trim().slice(0, 40);
-                    if (detectedText.length > 3) {
-                        updateStatus(`Detected text: "${detectedText}..." - No AI keywords found`);
-                    } else {
-                        updateStatus("No clear text detected - try better lighting or get closer");
-                    }
+                    errorMessage += "Try refreshing or using a different browser.";
                 }
                 
-            } catch (error) {
-                console.error('OCR error:', error);
-                updateStatus("Text recognition error - falling back to manual mode");
-                enableManualMode();
+                updateStatus(errorMessage);
             }
         }
 
@@ -571,13 +450,6 @@
         }
 
         function scanAIBillboard() {
-            const button = document.getElementById('scan-button');
-            
-            // Only proceed if button is enabled
-            if (button.disabled) {
-                return;
-            }
-            
             // Prevent spam clicking
             const now = Date.now();
             if (now - lastScanTime < 3000) {
@@ -585,28 +457,12 @@
             }
             lastScanTime = now;
 
-            // Check if we're in OCR mode or manual mode
-            const foundKeywords = button.dataset.foundKeywords;
-            
-            if (foundKeywords && foundKeywords.trim() !== "") {
-                // OCR mode - we have real detected keywords
-                showNotification(foundKeywords);
-                updateStatus(`AI billboard processed: ${foundKeywords}`);
-            } else {
-                // Manual mode - user is reporting they see AI text
-                showNotification("User-reported AI billboard");
-                updateStatus("User-reported AI billboard detected!");
-            }
-            
-            // Reset button for OCR mode
-            if (worker && isScanning) {
-                button.disabled = true;
-                button.textContent = "🔍 Scanning for more AI text...";
-                button.style.background = "linear-gradient(135deg, #666 0%, #444 100%)";
-            }
+            // Show notification
+            showNotification();
+            updateStatus("AI billboard detected!");
         }
 
-        function showNotification(detectedKeywords) {
+        function showNotification() {
             const notification = document.getElementById('notification');
             const title = document.getElementById('notif-title');
             const text = document.getElementById('notif-text');
@@ -620,17 +476,7 @@
             const neighborhoodName = neighborhoods[neighborhood].name;
             
             title.textContent = `🎯 AI Billboard Detected!`;
-            
-            if (detectedKeywords === "User-reported AI billboard") {
-                // Manual mode - user spotted AI text
-                text.textContent = `AI advertising spotted in ${neighborhoodName}. Discover what this neighborhood is really about beyond the corporate messaging.`;
-            } else if (detectedKeywords && detectedKeywords.trim() !== "") {
-                // OCR mode - show actual detected keywords
-                text.textContent = `Found keywords: "${detectedKeywords}" in ${neighborhoodName}. Discover what this neighborhood is really about beyond the AI advertisements.`;
-            } else {
-                // Fallback
-                text.textContent = `You're in ${neighborhoodName}. Discover what this neighborhood is really about beyond the advertisements.`;
-            }
+            text.textContent = `You're in ${neighborhoodName}. Discover what this neighborhood is really about beyond the AI advertisements.`;
             
             notification.classList.add('show');
             
