@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Billboard Scanner</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -249,8 +250,8 @@
             <div class="scanner-frame"></div>
             
             <div class="controls">
-                <button class="main-button" onclick="scanAIBillboard()">
-                    🎯 Found AI Billboard? Tap Here!
+                <button class="main-button" id="scan-button" onclick="scanAIBillboard()" disabled>
+                    🔍 Scanning for AI text...
                 </button>
                 <div class="status" id="status">Camera ready - Look for AI ads!</div>
                 <div class="location-info" id="location-info">
@@ -281,6 +282,15 @@
         let video;
         let userLocation = null;
         let lastScanTime = 0;
+        let worker = null;
+        let isScanning = false;
+
+        // AI-related keywords to detect
+        const aiKeywords = [
+            'AI', 'artificial intelligence', 'machine learning', 'chatgpt', 'openai',
+            'claude', 'anthropic', 'neural network', 'deep learning', 'algorithm',
+            'automation', 'smart', 'intelligent', 'bot', 'assistant', 'copilot'
+        ];
 
         // Neighborhood content
         const neighborhoods = {
@@ -366,7 +376,19 @@
                 video.srcObject = stream;
                 await video.play();
                 
-                updateStatus("Camera ready - Look for AI ads!");
+                updateStatus("Loading text recognition...");
+                
+                // Initialize OCR worker
+                try {
+                    worker = await Tesseract.createWorker('eng');
+                    updateStatus("Ready - Point at AI billboards!");
+                    startScanning();
+                } catch (ocrError) {
+                    console.error('OCR init error:', ocrError);
+                    updateStatus("OCR unavailable - using manual mode");
+                    enableManualMode();
+                }
+                
                 getCurrentLocation();
                 
             } catch (error) {
@@ -380,6 +402,72 @@
                 }
                 
                 updateStatus(errorMessage);
+            }
+        }
+
+        function enableManualMode() {
+            const button = document.getElementById('scan-button');
+            button.disabled = false;
+            button.textContent = "🎯 Found AI Billboard? Tap Here!";
+            button.style.background = "linear-gradient(135deg, #00ff88 0%, #00cc6a 100%)";
+        }
+
+        function startScanning() {
+            if (isScanning || !worker) return;
+            isScanning = true;
+            
+            // Scan every 3 seconds
+            setInterval(scanForAIText, 3000);
+        }
+
+        async function scanForAIText() {
+            if (!video || !worker || !isScanning) return;
+            
+            try {
+                // Create canvas and capture frame
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
+                
+                updateStatus("Scanning for AI keywords...");
+                
+                // OCR the image
+                const { data: { text } } = await worker.recognize(canvas);
+                
+                console.log('Detected text:', text.slice(0, 100));
+                
+                // Check for AI keywords
+                const foundKeywords = aiKeywords.filter(keyword => 
+                    text.toLowerCase().includes(keyword.toLowerCase())
+                );
+                
+                const button = document.getElementById('scan-button');
+                
+                if (foundKeywords.length > 0) {
+                    // Enable button when AI text found
+                    button.disabled = false;
+                    button.textContent = `🎯 AI Text Found: ${foundKeywords[0]}! Tap to Continue →`;
+                    button.style.background = "linear-gradient(135deg, #00ff88 0%, #00cc6a 100%)";
+                    updateStatus(`Found: ${foundKeywords.join(', ')}`);
+                } else {
+                    // Disable button when no AI text
+                    button.disabled = true;
+                    button.textContent = "🔍 No AI text detected - keep scanning...";
+                    button.style.background = "linear-gradient(135deg, #666 0%, #444 100%)";
+                    
+                    if (text.trim().length > 3) {
+                        updateStatus(`Detected: "${text.slice(0, 30)}..." - No AI keywords`);
+                    } else {
+                        updateStatus("No clear text detected - try better lighting");
+                    }
+                }
+                
+            } catch (error) {
+                console.error('OCR error:', error);
+                updateStatus("OCR error - falling back to manual mode");
+                enableManualMode();
             }
         }
 
@@ -450,6 +538,13 @@
         }
 
         function scanAIBillboard() {
+            const button = document.getElementById('scan-button');
+            
+            // Only proceed if button is enabled (AI text was detected)
+            if (button.disabled) {
+                return;
+            }
+            
             // Prevent spam clicking
             const now = Date.now();
             if (now - lastScanTime < 3000) {
@@ -460,6 +555,11 @@
             // Show notification
             showNotification();
             updateStatus("AI billboard detected!");
+            
+            // Reset button
+            button.disabled = true;
+            button.textContent = "🔍 Scanning for more AI text...";
+            button.style.background = "linear-gradient(135deg, #666 0%, #444 100%)";
         }
 
         function showNotification() {
