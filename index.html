@@ -405,32 +405,18 @@
                 video.srcObject = stream;
                 await video.play();
                 
-                updateStatus("Loading text recognition (this may take a moment)...");
+                updateStatus("Loading text recognition...");
                 
-                // Try to initialize OCR with longer timeout
-                setTimeout(async () => {
-                    try {
-                        worker = await Tesseract.createWorker('eng', {
-                            logger: m => {
-                                if (m.status === 'recognizing text') {
-                                    updateStatus(`Loading OCR: ${Math.round(m.progress * 100)}%`);
-                                }
-                            }
-                        });
-                        
-                        await worker.setParameters({
-                            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 -',
-                            tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT
-                        });
-                        
-                        updateStatus("OCR ready - scanning for AI text!");
-                        startScanning();
-                    } catch (ocrError) {
-                        console.error('OCR failed:', ocrError);
-                        updateStatus("OCR unavailable - using manual mode");
-                        enableManualMode();
-                    }
-                }, 2000);
+                // Simple OCR initialization (like before)
+                try {
+                    worker = await Tesseract.createWorker('eng');
+                    updateStatus("Ready - Point at AI billboards!");
+                    startScanning();
+                } catch (ocrError) {
+                    console.error('OCR init error:', ocrError);
+                    updateStatus("OCR unavailable - using manual mode");
+                    enableManualMode();
+                }
                 
                 getCurrentLocation();
                 
