@@ -183,6 +183,52 @@
 
       .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
       @keyframes spin { to { transform: rotate(360deg); } }
+
+      /* Popup styles */
+      .popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: grid;
+        place-items: start center;
+        padding-top: max(16px, calc(env(safe-area-inset-top) + 8px));
+        background: rgba(2, 6, 23, 0.45);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 250ms ease, visibility 250ms ease;
+      }
+      .popup-backdrop.show {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+      }
+      .popup-card {
+        width: min(90vw, 720px);
+        border-radius: 16px;
+        color: #fff;
+        background: linear-gradient(135deg, #7c3aed, #2563eb);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.3);
+        transform: translateY(-120%);
+        transition: transform 350ms cubic-bezier(.22,.9,.3,1);
+      }
+      .popup-backdrop.show .popup-card {
+        transform: translateY(0);
+      }
+      .popup-content { padding: 14px 16px; }
+      .popup-title { font-weight: 800; letter-spacing: 0.2px; }
+      .popup-keywords { margin-top: 6px; font-size: 0.95rem; opacity: 0.95; }
+      .popup-message { margin-top: 8px; font-size: 0.95rem; opacity: 0.95; }
+      .popup-btn {
+        margin-top: 10px;
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.25);
+        background: rgba(255,255,255,0.1);
+        color: #fff;
+        font-weight: 700;
+      }
     </style>
   </head>
   <body>
@@ -232,6 +278,18 @@
     </div>
 
     <canvas id="snapshot" class="visually-hidden" aria-hidden="true"></canvas>
+
+    <!-- Popup overlay -->
+    <div id="popupBackdrop" class="popup-backdrop" aria-hidden="true">
+      <div class="popup-card" role="dialog" aria-label="AI billboard detected" aria-modal="false">
+        <div class="popup-content">
+          <div class="popup-title">🎯 AI Billboard Detected!</div>
+          <div id="popupKeywords" class="popup-keywords"></div>
+          <div id="popupMessage" class="popup-message"></div>
+          <button id="popupExplore" class="popup-btn">Explore Local Culture →</button>
+        </div>
+      </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script>
@@ -381,9 +439,15 @@
         neighborhood: document.getElementById('neighborhood'),
         cultureIntro: document.getElementById('cultureIntro'),
         cultureContent: document.getElementById('cultureContent'),
+        popupBackdrop: document.getElementById('popupBackdrop'),
+        popupKeywords: document.getElementById('popupKeywords'),
+        popupMessage: document.getElementById('popupMessage'),
+        popupExplore: document.getElementById('popupExplore'),
       };
 
       let videoStream = null;
+      let currentNeighborhoodName = null;
+      let popupHideTimer = null;
 
       function setStatus(text, loading = false) {
         els.status.innerHTML = loading ? `<span class="spinner"></span> ${text}` : text;
@@ -405,6 +469,7 @@
 
       function updateCulture(neighborhoodName) {
         const name = neighborhoodName || 'Citywide';
+        currentNeighborhoodName = name;
         const content = CULTURE[name] || CULTURE['Citywide'];
         els.neighborhood.innerHTML = `Neighborhood: <span>${name}</span>`;
         els.cultureIntro.textContent = content.intro;
@@ -475,6 +540,26 @@
         els.noKeywords.style.display = terms.length ? 'none' : 'block';
       }
 
+      function formatKeywordsForPopup(terms, max = 4) {
+        const shown = terms.slice(0, max).map(t => `'${t}'`);
+        const extra = terms.length - shown.length;
+        return extra > 0 ? `Found: ${shown.join(', ')} +${extra} more` : `Found: ${shown.join(', ')}`;
+      }
+
+      function showDetectedPopup(terms, neighborhoodName) {
+        if (!terms || terms.length === 0) return;
+        const name = neighborhoodName || currentNeighborhoodName || 'this area';
+        els.popupKeywords.textContent = formatKeywordsForPopup(terms);
+        els.popupMessage.textContent = `You're in ${name}. Discover what this area is really about beyond the AI advertisements.`;
+        els.popupBackdrop.classList.add('show');
+        clearTimeout(popupHideTimer);
+        popupHideTimer = setTimeout(hideDetectedPopup, 9000);
+      }
+
+      function hideDetectedPopup() {
+        els.popupBackdrop.classList.remove('show');
+      }
+
       async function scanBillboard() {
         setStatus('Scanning image…', true);
         const canvas = drawVideoToCanvas(1280);
@@ -485,6 +570,7 @@
           renderKeywords(terms);
           if (terms.length) {
             setStatus(`Found ${terms.length} AI-related term(s).`);
+            showDetectedPopup(terms, currentNeighborhoodName);
           } else {
             setStatus('No obvious AI ad language found. Try a closer angle or different ad.');
           }
@@ -512,6 +598,15 @@
           document.removeEventListener('touchstart', once);
           if (!videoStream) startCamera();
         }, { passive: true });
+
+        els.popupBackdrop.addEventListener('click', (e) => {
+          if (e.target === els.popupBackdrop) hideDetectedPopup();
+        });
+        els.popupExplore.addEventListener('click', () => {
+          hideDetectedPopup();
+          const culture = document.querySelector('.culture');
+          if (culture) culture.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
       }
 
       init();
