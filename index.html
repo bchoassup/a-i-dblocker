@@ -443,8 +443,13 @@
         function enableManualMode() {
             const button = document.getElementById('scan-button');
             button.disabled = false;
-            button.textContent = "🎯 Found AI Billboard? Tap Here!";
+            button.textContent = "🎯 Spotted AI Billboard? Tap Here!";
             button.style.background = "linear-gradient(135deg, #00ff88 0%, #00cc6a 100%)";
+            
+            // Clear any fake data
+            button.dataset.foundKeywords = "";
+            
+            updateStatus("Manual mode: Tap button when you see AI advertising");
         }
 
         function startScanning() {
@@ -582,7 +587,7 @@
         function scanAIBillboard() {
             const button = document.getElementById('scan-button');
             
-            // Only proceed if button is enabled (AI text was detected)
+            // Only proceed if button is enabled
             if (button.disabled) {
                 return;
             }
@@ -594,24 +599,31 @@
             }
             lastScanTime = now;
 
-            // Show notification
-            showNotification();
-            updateStatus("AI billboard detected!");
+            // Check if we're in OCR mode or manual mode
+            const foundKeywords = button.dataset.foundKeywords;
             
-            // Reset button
-            button.disabled = true;
-            button.textContent = "🔍 Scanning for more AI text...";
-            button.style.background = "linear-gradient(135deg, #666 0%, #444 100%)";
+            if (foundKeywords && foundKeywords.trim() !== "") {
+                // OCR mode - we have real detected keywords
+                showNotification(foundKeywords);
+                updateStatus(`AI billboard processed: ${foundKeywords}`);
+            } else {
+                // Manual mode - user is reporting they see AI text
+                showNotification("User-reported AI billboard");
+                updateStatus("User-reported AI billboard detected!");
+            }
+            
+            // Reset button for OCR mode
+            if (worker && isScanning) {
+                button.disabled = true;
+                button.textContent = "🔍 Scanning for more AI text...";
+                button.style.background = "linear-gradient(135deg, #666 0%, #444 100%)";
+            }
         }
 
-        function showNotification() {
+        function showNotification(detectedKeywords) {
             const notification = document.getElementById('notification');
             const title = document.getElementById('notif-title');
             const text = document.getElementById('notif-text');
-            
-            // Get the keywords that were found
-            const button = document.getElementById('scan-button');
-            const foundKeywords = button.dataset.foundKeywords || 'AI-related text';
             
             // Determine current neighborhood
             let neighborhood = 'default';
@@ -622,7 +634,17 @@
             const neighborhoodName = neighborhoods[neighborhood].name;
             
             title.textContent = `🎯 AI Billboard Detected!`;
-            text.textContent = `Found keywords: "${foundKeywords}" in ${neighborhoodName}. Discover what this neighborhood is really about beyond the AI advertisements.`;
+            
+            if (detectedKeywords === "User-reported AI billboard") {
+                // Manual mode - user spotted AI text
+                text.textContent = `AI advertising spotted in ${neighborhoodName}. Discover what this neighborhood is really about beyond the corporate messaging.`;
+            } else if (detectedKeywords && detectedKeywords.trim() !== "") {
+                // OCR mode - show actual detected keywords
+                text.textContent = `Found keywords: "${detectedKeywords}" in ${neighborhoodName}. Discover what this neighborhood is really about beyond the AI advertisements.`;
+            } else {
+                // Fallback
+                text.textContent = `You're in ${neighborhoodName}. Discover what this neighborhood is really about beyond the advertisements.`;
+            }
             
             notification.classList.add('show');
             
