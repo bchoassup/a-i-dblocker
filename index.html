@@ -1,261 +1,520 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Billboard Scanner</title>
-    <script src="https://unpkg.com/tesseract.js@2.1.0/dist/tesseract.min.js"></script>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>AI Billboard Scanner • SF Culture Replacer</title>
+    <meta name="description" content="Point your phone at AI billboards to reveal authentic neighborhood stories and culture." />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Crect width='128' height='128' fill='%230f172a'/%3E%3Ctext x='50%25' y='58%25' dominant-baseline='middle' text-anchor='middle' font-size='72' fill='%23a3e635' font-family='Arial,Helvetica,sans-serif'%3EAI%3C/text%3E%3Ctext x='50%25' y='98%25' dominant-baseline='middle' text-anchor='middle' font-size='28' fill='%23e2e8f0' font-family='Arial,Helvetica,sans-serif'%3ESF%3C/text%3E%3C/svg%3E" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-            background: #000;
-            color: #fff;
-            height: 100vh;
-            overflow: hidden;
-        }
-        
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        .overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.3);
-        }
-        
-        .header {
-            text-align: center;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 15px;
-            border-radius: 10px;
-        }
-        
-        .scanner-area {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            height: 40%;
-            border: 3px solid #00ff88;
-            border-radius: 15px;
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 0.7; }
-            50% { opacity: 1; }
-        }
-        
-        .status {
-            background: rgba(0, 0, 0, 0.8);
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            font-size: 16px;
-        }
-        
-        .scan-button {
-            width: 100%;
-            max-width: 300px;
-            padding: 20px;
-            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
-            border: none;
-            border-radius: 15px;
-            color: #000;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            margin: 10px auto;
-            display: block;
-            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
-            transition: all 0.3s ease;
-        }
-        
-        .scan-button:active {
-            transform: translateY(2px);
-        }
-        
-        .scan-button:disabled {
-            background: #666;
-            color: #999;
-            cursor: not-allowed;
-        }
-            background: rgba(0, 255, 136, 0.2);
-            border: 2px solid #00ff88;
-            padding: 20px;
-            border-radius: 15px;
-            text-align: center;
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            right: 20px;
-            display: none;
-        }
+      :root {
+        --bg: #0b1020;
+        --panel: #111827;
+        --text: #e5e7eb;
+        --muted: #94a3b8;
+        --accent: #a3e635;
+        --accent-2: #22d3ee;
+        --danger: #ef4444;
+      }
+
+      html, body {
+        height: 100%;
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      .app {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        min-height: 100dvh;
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      header {
+        padding: env(safe-area-inset-top) 16px 8px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+      header .title {
+        font-weight: 700;
+        letter-spacing: 0.2px;
+      }
+      header .subtitle {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      main {
+        position: relative;
+        overflow: hidden;
+        background: #030712;
+      }
+
+      .video-wrap {
+        position: relative;
+        width: 100%;
+        height: 60dvh;
+        background: #000;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+      video#camera {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1);
+      }
+
+      .frame-overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        display: grid;
+        place-items: center;
+      }
+      .frame {
+        width: min(80vw, 560px);
+        height: min(42vw, 300px);
+        border: 3px dashed rgba(163, 230, 53, 0.9);
+        border-radius: 16px;
+        box-shadow: 0 0 0 200vmax rgba(0,0,0,0.35) inset;
+      }
+
+      .controls {
+        padding: 12px 16px 0 16px;
+        display: grid;
+        gap: 10px;
+        grid-template-columns: 1fr 1fr;
+      }
+      .controls button, .controls .ghost {
+        padding: 14px 16px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: linear-gradient(180deg, #111827, #0b1324);
+        color: var(--text);
+        font-weight: 600;
+        letter-spacing: 0.2px;
+      }
+      .controls button.primary {
+        background: linear-gradient(180deg, #0f172a, #0b1324);
+        border-color: rgba(163, 230, 53, 0.3);
+        box-shadow: 0 0 0 1px rgba(163, 230, 53, 0.16) inset, 0 8px 40px -12px rgba(163, 230, 53, 0.2);
+      }
+      .controls button:disabled {
+        opacity: 0.6;
+      }
+
+      .status {
+        padding: 8px 16px 0 16px;
+        color: var(--muted);
+        font-size: 0.94rem;
+        min-height: 1.5em;
+      }
+
+      .results {
+        padding: 16px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .chip {
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(34, 211, 238, 0.35);
+        color: #67e8f9;
+        background: rgba(8, 51, 68, 0.35);
+        font-size: 0.85rem;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 14px;
+        padding: 12px 14px;
+      }
+
+      .culture {
+        display: grid;
+        gap: 8px;
+      }
+      .culture h3 {
+        margin: 0 0 4px 0;
+        font-size: 1.1rem;
+      }
+      .culture p {
+        margin: 0;
+        color: var(--text);
+        line-height: 1.45;
+      }
+      .muted { color: var(--muted); }
+
+      footer {
+        padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+        color: var(--muted);
+        font-size: 0.85rem;
+        text-align: center;
+      }
+
+      .visually-hidden {
+        position: absolute !important;
+        height: 1px; width: 1px;
+        overflow: hidden;
+        clip: rect(1px, 1px, 1px, 1px);
+        white-space: nowrap;
+      }
+
+      .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
     </style>
-</head>
-<body>
-    <video id="video" autoplay playsinline></video>
-    
-    <div class="overlay">
-        <div class="header">
-            <h1>🎯 AI Billboard Scanner</h1>
-            <p>Auto-scanning for AI text...</p>
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #a3e635, #22d3ee); display:grid; place-items:center; color:#0f172a; font-weight:800;">AI</div>
+        <div>
+          <div class="title">AI Billboard Scanner</div>
+          <div class="subtitle">Point at AI ads → see local culture instead</div>
         </div>
-        
-        <div class="scanner-area"></div>
-        
-        <div class="status" id="status">Starting camera and scanner...</div>
-        
-        <button class="scan-button" id="scanBtn" onclick="scanNow()" disabled>
-            📸 Scan the Billboard
-        </button>
-    </div>
-    
-    <div class="detected" id="detected">
-        <h2>🎯 AI Text Found!</h2>
-        <p id="foundText"></p>
+        <div style="margin-left:auto; font-size:0.9rem; color:var(--muted)">SF</div>
+      </header>
+
+      <main>
+        <section class="video-wrap">
+          <video id="camera" playsinline autoplay muted></video>
+          <div class="frame-overlay">
+            <div class="frame" aria-hidden="true"></div>
+          </div>
+        </section>
+
+        <div class="controls">
+          <button id="btnStart" class="primary">Enable Camera</button>
+          <button id="btnScan" disabled>Scan the Billboard</button>
+        </div>
+
+        <div class="status" id="status">Grant camera permission to begin.</div>
+
+        <section class="results">
+          <div class="panel">
+            <div class="muted" style="margin-bottom:6px;">Detected AI keywords</div>
+            <div id="keywords" class="chip-row"></div>
+            <div id="noKeywords" class="muted" style="display:none">No AI ad language detected yet.</div>
+          </div>
+
+          <div class="panel culture">
+            <h3 id="neighborhood">Neighborhood: <span class="muted">Detecting…</span></h3>
+            <p id="cultureIntro" class="muted">Scan a billboard to reveal local stories that matter here.</p>
+            <div id="cultureContent" style="display:none"></div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        Built for public space. No tracking. Works offline after first load.
+      </footer>
     </div>
 
+    <canvas id="snapshot" class="visually-hidden" aria-hidden="true"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script>
-        let video;
-        let worker;
-        let scanning = false;
-        let ready = false;
-        
-        // AI keywords
-        const aiWords = ['ai', 'artificial intelligence', 'machine learning', 'chatgpt', 'smart', 'intelligent', 'automation'];
-        
-        // Auto-start everything when page loads
-        window.addEventListener('load', function() {
-            startEverything();
+      const AI_KEYWORDS = [
+        "ai","artificial intelligence","machine learning","deep learning","neural network","algorithm","computer vision","nlp","natural language","chatbot","assistant","automation","autonomous","predictive","generative","gen ai","genai","large language model","llm","foundation model","transformer","gpt","chatgpt","bard","gemini","claude","copilot","midjourney","stability ai","stable diffusion","dalle","runway","hugging face","openai","anthropic","google ai","microsoft ai","aws ai","vertex ai","sage","prompt","prompting","rag","retrieval","vector database","embedding","token","training data","fine-tune","finetune","inference","reinforcement learning","rlhf","computer-generated","smart","intelligent","predict","optimize","automate","personalize","recommendation","vision pro","edge ai","on-device ai","ai powered","ai-powered","model","data science","data-driven","cognitive","digital brain","co-pilot","copilot","chat","assistant","ai cloud","ai studio","ml ops","mlops","ai safety","alignment"
+      ];
+
+      const NEIGHBORHOODS = [
+        { name: "Mission District", bounds: [37.747, -122.427, 37.767, -122.403] },
+        { name: "SOMA", bounds: [37.770, -122.411, 37.790, -122.392] },
+        { name: "Castro", bounds: [37.758, -122.447, 37.769, -122.430] },
+        { name: "Chinatown", bounds: [37.791, -122.410, 37.799, -122.401] },
+        { name: "North Beach", bounds: [37.800, -122.412, 37.806, -122.403] },
+        { name: "Tenderloin", bounds: [37.780, -122.420, 37.788, -122.410] },
+        { name: "Financial District", bounds: [37.790, -122.405, 37.797, -122.397] },
+        { name: "Hayes Valley", bounds: [37.770, -122.431, 37.778, -122.420] },
+        { name: "Haight-Ashbury", bounds: [37.765, -122.454, 37.772, -122.441] },
+        { name: "Noe Valley", bounds: [37.740, -122.442, 37.753, -122.424] },
+        { name: "Bernal Heights", bounds: [37.731, -122.424, 37.748, -122.404] },
+        { name: "Dogpatch", bounds: [37.752, -122.390, 37.766, -122.371] },
+        { name: "Potrero Hill", bounds: [37.750, -122.404, 37.764, -122.392] },
+        { name: "The Marina", bounds: [37.800, -122.449, 37.807, -122.428] },
+        { name: "Pacific Heights", bounds: [37.788, -122.444, 37.800, -122.426] },
+        { name: "Outer Sunset", bounds: [37.738, -122.511, 37.762, -122.483] },
+        { name: "Inner Sunset", bounds: [37.755, -122.483, 37.765, -122.454] },
+        { name: "Outer Richmond", bounds: [37.775, -122.509, 37.785, -122.480] },
+        { name: "Inner Richmond", bounds: [37.775, -122.480, 37.785, -122.454] },
+        { name: "Bayview", bounds: [37.721, -122.402, 37.742, -122.375] },
+      ];
+
+      const CULTURE = {
+        "Mission District": { intro: "Here's what the Mission is really about:", body: [
+          "A cradle of Latino culture and the birthplace of Carlos Santana's sound.",
+          "Murals that speak of survival, dignity, and joy — a gallery without walls.",
+          "Community organizing that has defended working families for decades."
+        ]},
+        "SOMA": { intro: "Before startups, there was a working-class SOMA:", body: [
+          "Union halls, warehouses, and Filipino community anchors.",
+          "Stories of displacement — and of resistance shaped by solidarity.",
+          "Culture that never fit into pitch decks or product roadmaps."
+        ]},
+        "Castro": { intro: "Built by LGBTQ+ organizers, not algorithms:", body: [
+          "From Harvey Milk to everyday neighbors who made joy political.",
+          "Mutual aid, queer nightlife, and chosen families as infrastructure.",
+          "History written through marches, care, and courage."
+        ]},
+        "Chinatown": { intro: "Oldest Chinatown in North America:", body: [
+          "A sanctuary built against exclusion and violence.",
+          "Lion dances, herbal shops, newspapers, and intergenerational care.",
+          "Culture that survives by showing up for one another."
+        ]},
+        "North Beach": { intro: "From the Beats to bakery lines at dawn:", body: [
+          "Poetry readings that reimagined America.",
+          "Italian bakeries, cafés, and stoops as daily rituals.",
+          "A neighborhood stitched together by conversation."
+        ]},
+        "Tenderloin": { intro: "The Tenderloin has always held the line:", body: [
+          "Single-room hotels, immigrant kitchens, and harm-reduction pioneers.",
+          "Trans history made on Turk and Taylor long before hashtags.",
+          "Faith groups and nonprofits that feed, house, and defend."
+        ]},
+        "Financial District": { intro: "Behind the glass, older stories endure:", body: [
+          "Longshore strikes that reshaped labor rights.",
+          "Newspapers and newsboys — an information city before the internet.",
+          "Street vendors and secret stairways threading the hills."
+        ]},
+        "Hayes Valley": { intro: "From freeway shadow to streetlife revival:", body: [
+          "Neighbors removed a highway, and a culture of strolling came back.",
+          "Jazz lounges, parklets, and block parties as urban design.",
+          "Small shops with big memories tucked into every side street."
+        ]},
+        "Haight-Ashbury": { intro: "Psychedelic posters and cooperative living:", body: [
+          "A sound that echoed from row houses to the world.",
+          "Free clinics and crash pads — care as a civic experiment.",
+          "Counterculture that still whispers in thrift racks and porches."
+        ]},
+        "Noe Valley": { intro: "Hills, row houses, and sidewalk chats:", body: [
+          "Independent bookstores and playground politics.",
+          "Community boards where neighbors actually read the flyers.",
+          "A valley that keeps its pace and its people."
+        ]},
+        "Bernal Heights": { intro: "A hillside of gardens and gatherings:", body: [
+          "Activist radio and foggy sunrise dog walks on the hill.",
+          "Yard sales that somehow become block parties.",
+          "Mamas and abuelas who know everyone's name."
+        ]},
+        "Dogpatch": { intro: "Shipyards, studios, and stubborn beauty:", body: [
+          "Makerspaces in old industrial shells.",
+          "Waterfront walks that hold time differently.",
+          "A neighborhood that welds history to what's next."
+        ]},
+        "Potrero Hill": { intro: "Skyline views, kitchen tables, and labor lore:", body: [
+          "Community gardens perched above the Bay.",
+          "Potlucks that outlast the workday.",
+          "A hill that remembers who built this city."
+        ]},
+        "The Marina": { intro: "Tides, trails, and the Palace by the water:", body: [
+          "Weekend runs that end with wind and salt.",
+          "Classics cruising down Lombard at golden hour.",
+          "A neighborhood lit by bridges and bay light."
+        ]},
+        "Pacific Heights": { intro: "Stairs, spires, and stained glass:", body: [
+          "Victorians that remember earthquakes and after-parties.",
+          "Pocket parks as living rooms with a view.",
+          "A ridge of stories looking out to sea."
+        ]},
+        "Outer Sunset": { intro: "Dunes tamed, ocean untamed:", body: [
+          "Ceramics studios and surf wax on back steps.",
+          "Fog that teaches patience and poetry.",
+          "Taraval and Judah as living timelines."
+        ]},
+        "Inner Sunset": { intro: "Golden Gate Park's front porch:", body: [
+          "Tea houses, science museums, and picnics on the meadow.",
+          "Dim sum at noon, pho at night — and a walk between.",
+          "Neighbors who trade cuttings and recipes."
+        ]},
+        "Outer Richmond": { intro: "Cliff edges and comfort food:", body: [
+          "Sea lions at Sutro and steam from hot pots.",
+          "Russian bakeries and lunar new year lanterns.",
+          "A west wind carrying so many languages."
+        ]},
+        "Inner Richmond": { intro: "Libraries, line cooks, and long walks:", body: [
+          "Bookstores for every obsession.",
+          "Dim sum lines that double as reunions.",
+          "Clement Street as a passport."
+        ]},
+        "Bayview": { intro: "Shipwrights, murals, and mutual aid:", body: [
+          "Black San Francisco built here and still building.",
+          "Community farms and radio stations threading the hills.",
+          "Bay breezes, cookouts, and block parties that last."
+        ]},
+        "Citywide": { intro: "Wherever you are in SF, remember:", body: [
+          "This city is built by people, not platforms.",
+          "Culture is a verb you do with your neighbors.",
+          "Advertising is loud; community is louder."
+        ]}
+      };
+
+      const els = {
+        video: document.getElementById('camera'),
+        start: document.getElementById('btnStart'),
+        scan: document.getElementById('btnScan'),
+        status: document.getElementById('status'),
+        keywords: document.getElementById('keywords'),
+        noKeywords: document.getElementById('noKeywords'),
+        snapshot: document.getElementById('snapshot'),
+        neighborhood: document.getElementById('neighborhood'),
+        cultureIntro: document.getElementById('cultureIntro'),
+        cultureContent: document.getElementById('cultureContent'),
+      };
+
+      let videoStream = null;
+
+      function setStatus(text, loading = false) {
+        els.status.innerHTML = loading ? `<span class="spinner"></span> ${text}` : text;
+      }
+
+      function inBounds(lat, lon, bounds) {
+        const [minLat, minLon, maxLat, maxLon] = bounds;
+        return lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
+      }
+
+      function detectNeighborhood(coords) {
+        if (!coords) return null;
+        const { latitude, longitude } = coords;
+        for (const n of NEIGHBORHOODS) {
+          if (inBounds(latitude, longitude, n.bounds)) return n.name;
+        }
+        return null;
+      }
+
+      function updateCulture(neighborhoodName) {
+        const name = neighborhoodName || 'Citywide';
+        const content = CULTURE[name] || CULTURE['Citywide'];
+        els.neighborhood.innerHTML = `Neighborhood: <span>${name}</span>`;
+        els.cultureIntro.textContent = content.intro;
+        els.cultureContent.innerHTML = content.body.map(p => `<p>${p}</p>`).join('');
+        els.cultureContent.style.display = 'block';
+      }
+
+      async function getLocationAndUpdate() {
+        if (!('geolocation' in navigator)) {
+          updateCulture(null);
+          return;
+        }
+        return new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition((pos) => {
+            const neighborhood = detectNeighborhood(pos.coords);
+            updateCulture(neighborhood);
+            resolve(neighborhood);
+          }, (err) => {
+            console.warn('Geolocation error', err);
+            updateCulture(null);
+            resolve(null);
+          }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 });
         });
-        
-        async function startEverything() {
-            try {
-                updateStatus('🎥 Starting camera...');
-                
-                // Get camera
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' } 
-                });
-                
-                video = document.getElementById('video');
-                video.srcObject = stream;
-                await video.play();
-                
-                updateStatus('🤖 Loading text scanner...');
-                
-                // Start OCR
-                worker = Tesseract.createWorker();
-                await worker.load();
-                await worker.loadLanguage('eng');
-                await worker.initialize('eng');
-                
-                updateStatus('✅ Ready! Point at billboard and tap scan');
-                ready = true;
-                document.getElementById('scanBtn').disabled = false;
-                
-                // Remove auto-scanning - now manual only
-                
-            } catch (error) {
-                updateStatus('❌ Failed: ' + error.message);
-                console.error(error);
-            }
+      }
+
+      async function startCamera() {
+        try {
+          setStatus('Requesting camera…', true);
+          videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+          els.video.srcObject = videoStream;
+          const settings = videoStream.getVideoTracks()[0]?.getSettings?.() || {};
+          if (settings.facingMode !== 'user') {
+            els.video.style.transform = 'none';
+          }
+          els.scan.disabled = false;
+          setStatus('Camera ready. Frame a billboard and tap Scan.');
+        } catch (e) {
+          console.error(e);
+          setStatus('Camera permission denied or unavailable. Try Safari/Chrome with HTTPS.');
         }
-        
-        function scanNow() {
-            if (!ready || scanning) return;
-            
-            scanning = true;
-            updateStatus('🔍 Scanning billboard...');
-            document.getElementById('scanBtn').textContent = '⏳ Scanning...';
-            document.getElementById('scanBtn').disabled = true;
-            
-            performScan();
+      }
+
+      function drawVideoToCanvas(maxWidth = 1280) {
+        const video = els.video;
+        const canvas = els.snapshot;
+        const ratio = video.videoWidth / video.videoHeight || 1.777;
+        const targetWidth = Math.min(maxWidth, video.videoWidth || maxWidth);
+        const targetHeight = Math.round(targetWidth / ratio);
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
+        return canvas;
+      }
+
+      function extractKeywordsFromText(text) {
+        const hay = (text || '').toLowerCase();
+        const found = new Set();
+        for (const term of AI_KEYWORDS) {
+          const t = term.toLowerCase();
+          if (hay.includes(t)) found.add(t);
         }
-        
-        async function performScan() {
-            try {
-                // Capture frame
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0);
-                
-                // OCR
-                const { data: { text } } = await worker.recognize(canvas);
-                
-                if (text && text.trim()) {
-                    console.log('Detected text:', text);
-                    
-                    // Check for AI words
-                    const foundWords = [];
-                    const lowerText = text.toLowerCase();
-                    
-                    for (const word of aiWords) {
-                        if (lowerText.includes(word)) {
-                            foundWords.push(word);
-                        }
-                    }
-                    
-                    if (foundWords.length > 0) {
-                        showDetection(text, foundWords);
-                    } else {
-                        updateStatus(`📝 Text found: "${text.slice(0, 30)}..." (no AI keywords)`);
-                    }
-                } else {
-                    updateStatus('❌ No text detected - try better lighting or get closer');
-                }
-                
-            } catch (error) {
-                updateStatus('❌ Scan failed - try again');
-                console.error(error);
-            }
-            
-            // Reset button
-            setTimeout(() => {
-                scanning = false;
-                document.getElementById('scanBtn').textContent = '📸 Scan the Billboard';
-                document.getElementById('scanBtn').disabled = false;
-            }, 2000);
+        return Array.from(found).sort();
+      }
+
+      function renderKeywords(terms) {
+        els.keywords.innerHTML = terms.map(t => `<span class="chip">${t}</span>`).join('');
+        els.noKeywords.style.display = terms.length ? 'none' : 'block';
+      }
+
+      async function scanBillboard() {
+        setStatus('Scanning image…', true);
+        const canvas = drawVideoToCanvas(1280);
+        try {
+          const { data } = await Tesseract.recognize(canvas, 'eng', { logger: m => { if (m.status === 'recognizing text') setStatus(`Reading text… ${(m.progress*100).toFixed(0)}%`, true); } });
+          const text = data?.text || '';
+          const terms = extractKeywordsFromText(text);
+          renderKeywords(terms);
+          if (terms.length) {
+            setStatus(`Found ${terms.length} AI-related term(s).`);
+          } else {
+            setStatus('No obvious AI ad language found. Try a closer angle or different ad.');
+          }
+        } catch (e) {
+          console.error(e);
+          setStatus('OCR failed. Try again or check connection for first-time load.');
         }
-        
-        function startScanning() {
-            // Removed auto-scanning - now manual only
+      }
+
+      async function registerServiceWorker() {
+        if (!('serviceWorker' in navigator)) return;
+        try {
+          await navigator.serviceWorker.register('sw.js');
+        } catch (e) {
+          console.warn('SW registration failed', e);
         }
-        
-        function showDetection(text, words) {
-            updateStatus('🎯 AI TEXT DETECTED!');
-            
-            document.getElementById('foundText').innerHTML = 
-                `<strong>Found:</strong> ${words.join(', ')}<br>
-                 <strong>In text:</strong> "${text.slice(0, 50)}..."`;
-            
-            document.getElementById('detected').style.display = 'block';
-            
-            // Hide after 5 seconds
-            setTimeout(() => {
-                document.getElementById('detected').style.display = 'none';
-            }, 5000);
-        }
-        
-        function updateStatus(message) {
-            document.getElementById('status').textContent = message;
-        }
+      }
+
+      async function init() {
+        registerServiceWorker();
+        await getLocationAndUpdate();
+        els.start.addEventListener('click', startCamera);
+        els.scan.addEventListener('click', scanBillboard);
+        document.addEventListener('touchstart', function once() {
+          document.removeEventListener('touchstart', once);
+          if (!videoStream) startCamera();
+        }, { passive: true });
+      }
+
+      init();
     </script>
-</body>
+  </body>
 </html>
