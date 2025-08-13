@@ -226,7 +226,7 @@
       /* Mission District specific container styling */
       .culture-popup-backdrop.mission-district .culture-popup-container {
         color: white;
-        background: linear-gradient(transparent 0%, rgba(0,0,0,0.4) 25%, rgba(0,0,0,0.8) 60%, rgba(0,0,0,1) 85%);
+        background: none;
       }
       .culture-popup-header {
         display: flex;
@@ -279,9 +279,6 @@
       /* Mission District header section */
       .culture-popup-backdrop.mission-district .mission-header {
         height: 100vh;
-        background-image: url('mission.jpg');
-        background-size: cover;
-        background-position: center;
         background: linear-gradient(transparent 0%, rgba(0,0,0,0.4) 25%, rgba(0,0,0,0.8) 60%, rgba(0,0,0,1) 85%), url('mission.jpg');
         background-size: cover;
         background-position: center;
@@ -303,8 +300,7 @@
       /* Mission District scrollable content area */
       .culture-popup-backdrop.mission-district .mission-content {
         background: black;
-        min-height: 100vh;
-        padding: 40px 20px calc(40px + env(safe-area-inset-bottom));
+        padding: 60px 20px calc(60px + env(safe-area-inset-bottom));
       }
       
       /* Mission District content images */
@@ -312,8 +308,13 @@
         width: 100%;
         max-width: 100%;
         height: auto;
-        margin-bottom: 40px;
-        border-radius: 8px;
+        margin-bottom: 60px;
+        border-radius: 12px;
+        display: block;
+      }
+      
+      .culture-popup-backdrop.mission-district .content-image:last-child {
+        margin-bottom: 0;
       }
       
       /* Default content styling for non-Mission neighborhoods */
@@ -375,9 +376,8 @@
           font-size: 15px;
           line-height: 18px;
         }
-        .culture-popup-backdrop.mission-district .culture-popup-content {
-          padding: 0 20px calc(100px + env(safe-area-inset-bottom));
-          padding-top: 20vh;
+        .culture-popup-backdrop.mission-district .mission-content {
+          padding: 40px 16px calc(40px + env(safe-area-inset-bottom));
         }
       }
     </style>
