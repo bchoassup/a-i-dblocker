@@ -226,7 +226,7 @@
       /* Mission District specific container styling */
       .culture-popup-backdrop.mission-district .culture-popup-container {
         color: white;
-        background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.4));
+        background: linear-gradient(transparent 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,1) 100%);
       }
       .culture-popup-header {
         display: flex;
@@ -276,6 +276,15 @@
         flex-direction: column;
         justify-content: flex-end;
         padding-bottom: calc(60px + env(safe-area-inset-bottom));
+        align-items: center;
+      }
+      
+      /* Mission District text container with width limit */
+      .culture-popup-backdrop.mission-district .culture-popup-title,
+      .culture-popup-backdrop.mission-district .culture-popup-body {
+        width: 75%;
+        max-width: 75%;
+        text-align: center;
       }
       .culture-popup-title {
         font-family: Helvetica, Arial, sans-serif;
@@ -296,15 +305,15 @@
       
       /* Mission District specific typography */
       .culture-popup-backdrop.mission-district .culture-popup-title {
-        font-size: 72px;
-        line-height: 76px;
+        font-size: 36px;
+        line-height: 38px;
         color: white;
-        margin: 0 0 32px 0;
+        margin: 0 0 16px 0;
         text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
       }
       .culture-popup-backdrop.mission-district .culture-popup-body {
-        font-size: 36px;
-        line-height: 40px;
+        font-size: 18px;
+        line-height: 20px;
         color: white;
         text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
       }
@@ -325,12 +334,12 @@
         
         /* Mission District responsive overrides */
         .culture-popup-backdrop.mission-district .culture-popup-title {
-          font-size: 48px;
-          line-height: 52px;
+          font-size: 24px;
+          line-height: 26px;
         }
         .culture-popup-backdrop.mission-district .culture-popup-body {
-          font-size: 24px;
-          line-height: 28px;
+          font-size: 12px;
+          line-height: 14px;
         }
         .culture-popup-backdrop.mission-district .culture-popup-content {
           padding: 0 20px calc(40px + env(safe-area-inset-bottom));
