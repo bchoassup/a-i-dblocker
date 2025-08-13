@@ -63,10 +63,24 @@
         align-items: center;
         justify-content: center;
       }
-      .logo-overlay svg {
-        display: block;
-        max-width: 100%;
-        max-height: 100%;
+      .logo-text {
+        text-align: center;
+        line-height: 1;
+      }
+      .logo-ai {
+        font-size: 48px;
+        font-weight: 800;
+        background: linear-gradient(135deg, #a3e635 0%, #22d3ee 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 4px;
+      }
+      .logo-sf {
+        font-size: 18px;
+        font-weight: 600;
+        color: #e2e8f0;
+        letter-spacing: 2px;
       }
 
       /* Bottom overlay controls - minimized and transparent */
@@ -189,18 +203,10 @@
 
     <!-- Top overlay logo -->
     <div class="logo-overlay">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="104" height="104">
-        <defs>
-          <linearGradient id="logoGradient" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#a3e635"/>
-            <stop offset="1" stop-color="#22d3ee"/>
-          </linearGradient>
-        </defs>
-        <rect width="128" height="128" rx="24" fill="#0f172a"/>
-        <rect x="8" y="8" width="112" height="112" rx="20" fill="#0b1020"/>
-        <text x="50%" y="56%" dominant-baseline="middle" text-anchor="middle" font-size="64" fill="url(#logoGradient)" font-family="Arial,Helvetica,sans-serif" font-weight="800">AI</text>
-        <text x="50%" y="94%" dominant-baseline="middle" text-anchor="middle" font-size="22" fill="#e2e8f0" font-family="Arial,Helvetica,sans-serif">SF</text>
-      </svg>
+      <div class="logo-text">
+        <div class="logo-ai">AI</div>
+        <div class="logo-sf">SF</div>
+      </div>
     </div>
 
     <!-- Bottom overlay controls -->
