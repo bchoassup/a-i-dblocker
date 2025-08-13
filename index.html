@@ -271,20 +271,54 @@
       
       /* Mission District specific content positioning */
       .culture-popup-backdrop.mission-district .culture-popup-content {
-        padding: 0 24px calc(120px + env(safe-area-inset-bottom));
+        padding: 0;
+        display: block;
+        overflow-y: auto;
+      }
+      
+      /* Mission District header section */
+      .culture-popup-backdrop.mission-district .mission-header {
+        height: 100vh;
+        background-image: url('mission.jpg');
+        background-size: cover;
+        background-position: center;
+        background: linear-gradient(transparent 0%, rgba(0,0,0,0.4) 25%, rgba(0,0,0,0.8) 60%, rgba(0,0,0,1) 85%), url('mission.jpg');
+        background-size: cover;
+        background-position: center;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        padding-top: 25vh;
+        position: relative;
       }
       
-      /* Mission District text container with width limit */
-      .culture-popup-backdrop.mission-district .culture-popup-title,
-      .culture-popup-backdrop.mission-district .culture-popup-body {
+      /* Mission District header text */
+      .culture-popup-backdrop.mission-district .mission-header .culture-popup-title,
+      .culture-popup-backdrop.mission-district .mission-header .culture-popup-body {
         width: 75%;
         max-width: 75%;
         text-align: center;
+      }
+      
+      /* Mission District scrollable content area */
+      .culture-popup-backdrop.mission-district .mission-content {
+        background: black;
+        min-height: 100vh;
+        padding: 40px 20px calc(40px + env(safe-area-inset-bottom));
+      }
+      
+      /* Mission District content images */
+      .culture-popup-backdrop.mission-district .content-image {
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        margin-bottom: 40px;
+        border-radius: 8px;
+      }
+      
+      /* Default content styling for non-Mission neighborhoods */
+      .default-content {
+        padding: 40px 24px calc(24px + env(safe-area-inset-bottom));
       }
       .culture-popup-title {
         font-family: Helvetica, Arial, sans-serif;
@@ -408,8 +442,20 @@
           <button id="closeCulturePopup" class="culture-close-btn">✕</button>
         </div>
         <div class="culture-popup-content">
-          <h1 id="culturePopupTitle" class="culture-popup-title"></h1>
-          <div id="culturePopupBody" class="culture-popup-body"></div>
+          <div id="missionHeader" class="mission-header" style="display: none;">
+            <h1 id="culturePopupTitle" class="culture-popup-title"></h1>
+            <div id="culturePopupBody" class="culture-popup-body"></div>
+          </div>
+          <div id="missionContent" class="mission-content" style="display: none;">
+            <img src="carlossantana.png" alt="Carlos Santana" class="content-image" />
+            <img src="mural.png" alt="Mission District Mural" class="content-image" />
+          </div>
+          
+          <!-- Default content for non-Mission neighborhoods -->
+          <div id="defaultContent" class="default-content">
+            <h1 id="defaultTitle" class="culture-popup-title"></h1>
+            <div id="defaultBody" class="culture-popup-body"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -568,6 +614,11 @@
         culturePopupTitle: document.getElementById('culturePopupTitle'),
         culturePopupBody: document.getElementById('culturePopupBody'),
         closeCulturePopup: document.getElementById('closeCulturePopup'),
+        missionHeader: document.getElementById('missionHeader'),
+        missionContent: document.getElementById('missionContent'),
+        defaultContent: document.getElementById('defaultContent'),
+        defaultTitle: document.getElementById('defaultTitle'),
+        defaultBody: document.getElementById('defaultBody'),
       };
 
       let videoStream = null;
@@ -692,17 +743,30 @@
         // Remove any existing neighborhood classes
         els.culturePopupBackdrop.classList.remove('mission-district');
         
+        // Hide all content sections first
+        els.missionHeader.style.display = 'none';
+        els.missionContent.style.display = 'none';
+        els.defaultContent.style.display = 'none';
+        
         // Special content for Mission District matching your design
         if (name === 'Mission District') {
           els.culturePopupTitle.textContent = 'Welcome to Mission District';
           els.culturePopupBody.textContent = "The Mission is SF's most vibrant Latino neighborhood, known for authentic Mexican culture, incredible street food (burritos were invented here), and world-famous murals along Balmy Alley and 24th Street.";
+          
+          // Show Mission District sections
+          els.missionHeader.style.display = 'flex';
+          els.missionContent.style.display = 'block';
+          
           // Add Mission District specific styling
           els.culturePopupBackdrop.classList.add('mission-district');
         } else {
           // Default content for other neighborhoods
           const content = CULTURE[name] || CULTURE['Citywide'];
-          els.culturePopupTitle.textContent = `Welcome to ${name}`;
-          els.culturePopupBody.textContent = content.intro + ' ' + content.body.join(' ');
+          els.defaultTitle.textContent = `Welcome to ${name}`;
+          els.defaultBody.textContent = content.intro + ' ' + content.body.join(' ');
+          
+          // Show default content
+          els.defaultContent.style.display = 'block';
         }
         
         els.culturePopupBackdrop.classList.add('show');
