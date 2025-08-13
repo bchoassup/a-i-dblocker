@@ -177,7 +177,7 @@
         text-align: center;
         text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
       }
-      .popup-message { margin-top: 12px; font-size: 0.95rem; opacity: 0.95; }
+      .popup-message { margin-top: 12px; font-size: 0.95rem; opacity: 0.95; text-align: center; }
       .popup-btn {
         margin-top: 10px;
         width: 100%;
@@ -491,7 +491,7 @@
         const name = neighborhoodName || currentNeighborhoodName || 'San Francisco';
         els.popupKeywords.textContent = formatKeywordsForPopup(terms);
         els.popupNeighborhood.textContent = `You're in ${name}`;
-        els.popupMessage.textContent = `Discover what this neighborhood is really about beyond the AI advertisements.`;
+        els.popupMessage.textContent = `Discover what makes this neighborhood unique.`;
         els.popupBackdrop.classList.add('show');
         clearTimeout(popupHideTimer);
         popupHideTimer = setTimeout(hideDetectedPopup, 9000);
