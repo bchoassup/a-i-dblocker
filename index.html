@@ -169,7 +169,15 @@
       .popup-content { padding: 14px 16px; }
       .popup-title { font-weight: 800; letter-spacing: 0.2px; }
       .popup-keywords { margin-top: 6px; font-size: 0.95rem; opacity: 0.95; }
-      .popup-message { margin-top: 8px; font-size: 0.95rem; opacity: 0.95; }
+      .popup-neighborhood { 
+        margin-top: 12px; 
+        font-size: 26px; 
+        font-weight: bold; 
+        color: #ffffff; 
+        text-align: center;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      }
+      .popup-message { margin-top: 12px; font-size: 0.95rem; opacity: 0.95; }
       .popup-btn {
         margin-top: 10px;
         width: 100%;
@@ -218,6 +226,7 @@
         <div class="popup-content">
           <div class="popup-title">🎯 AI Billboard Detected!</div>
           <div id="popupKeywords" class="popup-keywords"></div>
+          <div id="popupNeighborhood" class="popup-neighborhood"></div>
           <div id="popupMessage" class="popup-message"></div>
           <button id="popupExplore" class="popup-btn">Explore Local Culture →</button>
         </div>
@@ -371,6 +380,7 @@
         cultureContent: document.getElementById('cultureContent'),
         popupBackdrop: document.getElementById('popupBackdrop'),
         popupKeywords: document.getElementById('popupKeywords'),
+        popupNeighborhood: document.getElementById('popupNeighborhood'),
         popupMessage: document.getElementById('popupMessage'),
         popupExplore: document.getElementById('popupExplore'),
       };
@@ -478,9 +488,10 @@
         if (now - lastPopupAt < 7000) return; // cooldown to avoid rapid repeats
         lastPopupAt = now;
 
-        const name = neighborhoodName || currentNeighborhoodName || 'this area';
+        const name = neighborhoodName || currentNeighborhoodName || 'San Francisco';
         els.popupKeywords.textContent = formatKeywordsForPopup(terms);
-        els.popupMessage.textContent = `You're in ${name}. Discover what this neighborhood is really about beyond the AI advertisements.`;
+        els.popupNeighborhood.textContent = `You're in ${name}`;
+        els.popupMessage.textContent = `Discover what this neighborhood is really about beyond the AI advertisements.`;
         els.popupBackdrop.classList.add('show');
         clearTimeout(popupHideTimer);
         popupHideTimer = setTimeout(hideDetectedPopup, 9000);
