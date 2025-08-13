@@ -219,12 +219,16 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: calc(env(safe-area-inset-top) + 20px) 24px 0 24px;
+        padding: calc(env(safe-area-inset-top) + 20px) 24px 20px 24px;
         flex-shrink: 0;
+        min-height: 60px;
+        background: rgba(255, 0, 0, 0.1); /* Temporary debug background */
       }
       .culture-popup-logo {
         height: 40px;
         width: auto;
+        display: block;
+        object-fit: contain;
       }
       .culture-close-btn {
         width: 32px;
@@ -334,7 +338,7 @@
     <div id="culturePopupBackdrop" class="culture-popup-backdrop" aria-hidden="true">
       <div class="culture-popup-container">
         <div class="culture-popup-header">
-          <img src="logo.png" alt="Logo" class="culture-popup-logo" />
+          <img src="logo.png" alt="Logo" class="culture-popup-logo" onerror="console.log('Logo failed to load'); this.style.display='none';" onload="console.log('Logo loaded successfully');" />
           <button id="closeCulturePopup" class="culture-close-btn">✕</button>
         </div>
         <div class="culture-popup-content">
