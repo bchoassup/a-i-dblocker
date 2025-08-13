@@ -194,80 +194,87 @@
         position: fixed;
         inset: 0;
         z-index: 10000;
-        background: rgba(0, 0, 0, 0.95);
-        backdrop-filter: blur(8px);
+        background: white;
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
         transition: opacity 300ms ease, visibility 300ms ease;
+        transform: translateY(100%);
       }
       .culture-popup-backdrop.show {
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
+        transform: translateY(0);
+        transition: opacity 300ms ease, visibility 300ms ease, transform 350ms cubic-bezier(0.22, 0.9, 0.3, 1);
       }
       .culture-popup-container {
         height: 100vh;
         display: flex;
         flex-direction: column;
-        color: white;
+        color: black;
+        font-family: Helvetica, Arial, sans-serif;
       }
       .culture-popup-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: calc(env(safe-area-inset-top) + 16px) 20px 16px 20px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: calc(env(safe-area-inset-top) + 20px) 24px 0 24px;
         flex-shrink: 0;
       }
-      .culture-popup-title {
-        font-size: 24px;
-        font-weight: 800;
-        margin: 0;
-        color: #a3e635;
+      .culture-popup-logo {
+        height: 40px;
+        width: auto;
       }
       .culture-close-btn {
-        width: 40px;
-        height: 40px;
-        border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        background: rgba(255, 255, 255, 0.1);
-        color: white;
-        font-size: 18px;
-        font-weight: bold;
+        width: 32px;
+        height: 32px;
+        border: none;
+        background: none;
+        color: black;
+        font-size: 24px;
+        font-weight: normal;
         display: flex;
         align-items: center;
         justify-content: center;
+        cursor: pointer;
+        padding: 0;
       }
       .culture-popup-content {
         flex: 1;
         overflow-y: auto;
-        padding: 0 20px calc(20px + env(safe-area-inset-bottom));
+        padding: 40px 24px calc(24px + env(safe-area-inset-bottom));
       }
-      .culture-intro-text {
-        font-size: 18px;
-        font-weight: 600;
-        color: #22d3ee;
-        margin: 20px 0;
-        text-align: center;
+      .culture-popup-title {
+        font-family: Helvetica, Arial, sans-serif;
+        font-weight: bold;
+        font-size: 72px;
+        line-height: 76px;
+        color: black;
+        margin: 0 0 32px 0;
       }
-      .culture-stories {
-        display: grid;
-        gap: 20px;
+      .culture-popup-body {
+        font-family: Helvetica, Arial, sans-serif;
+        font-weight: normal;
+        font-size: 36px;
+        line-height: 40px;
+        color: black;
+        margin: 0;
       }
-      .culture-story {
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
-        padding: 20px;
-        border-left: 4px solid #a3e635;
-      }
-      .culture-story p {
-        margin: 0 0 12px 0;
-        line-height: 1.6;
-        font-size: 16px;
-      }
-      .culture-story p:last-child {
-        margin-bottom: 0;
+      
+      /* Responsive adjustments for smaller screens */
+      @media (max-width: 768px) {
+        .culture-popup-title {
+          font-size: 48px;
+          line-height: 52px;
+        }
+        .culture-popup-body {
+          font-size: 24px;
+          line-height: 28px;
+        }
+        .culture-popup-content {
+          padding: 32px 20px calc(20px + env(safe-area-inset-bottom));
+        }
       }
     </style>
   </head>
@@ -327,12 +334,12 @@
     <div id="culturePopupBackdrop" class="culture-popup-backdrop" aria-hidden="true">
       <div class="culture-popup-container">
         <div class="culture-popup-header">
-          <h2 id="culturePopupTitle" class="culture-popup-title"></h2>
+          <img src="logo.png" alt="Logo" class="culture-popup-logo" />
           <button id="closeCulturePopup" class="culture-close-btn">✕</button>
         </div>
         <div class="culture-popup-content">
-          <div id="culturePopupIntro" class="culture-intro-text"></div>
-          <div id="culturePopupStories" class="culture-stories"></div>
+          <h1 id="culturePopupTitle" class="culture-popup-title"></h1>
+          <div id="culturePopupBody" class="culture-popup-body"></div>
         </div>
       </div>
     </div>
@@ -489,8 +496,7 @@
         popupExplore: document.getElementById('popupExplore'),
         culturePopupBackdrop: document.getElementById('culturePopupBackdrop'),
         culturePopupTitle: document.getElementById('culturePopupTitle'),
-        culturePopupIntro: document.getElementById('culturePopupIntro'),
-        culturePopupStories: document.getElementById('culturePopupStories'),
+        culturePopupBody: document.getElementById('culturePopupBody'),
         closeCulturePopup: document.getElementById('closeCulturePopup'),
       };
 
@@ -612,15 +618,17 @@
 
       function showCulturePopup(neighborhoodName) {
         const name = neighborhoodName || currentNeighborhoodName || 'San Francisco';
-        const content = CULTURE[name] || CULTURE['Citywide'];
         
-        els.culturePopupTitle.textContent = name;
-        els.culturePopupIntro.textContent = content.intro;
-        
-        // Create story cards from the content
-        els.culturePopupStories.innerHTML = content.body.map(story => 
-          `<div class="culture-story"><p>${story}</p></div>`
-        ).join('');
+        // Special content for Mission District matching your design
+        if (name === 'Mission District') {
+          els.culturePopupTitle.textContent = 'Welcome to Mission District';
+          els.culturePopupBody.textContent = "The Mission is SF's most vibrant Latino neighborhood, known for authentic Mexican culture, incredible street food (burritos were invented here), and world-famous murals along Balmy Alley and 24th Street.";
+        } else {
+          // Default content for other neighborhoods
+          const content = CULTURE[name] || CULTURE['Citywide'];
+          els.culturePopupTitle.textContent = `Welcome to ${name}`;
+          els.culturePopupBody.textContent = content.intro + ' ' + content.body.join(' ');
+        }
         
         els.culturePopupBackdrop.classList.add('show');
       }
