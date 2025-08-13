@@ -226,7 +226,7 @@
       /* Mission District specific container styling */
       .culture-popup-backdrop.mission-district .culture-popup-container {
         color: white;
-        background: linear-gradient(transparent 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,1) 100%);
+        background: linear-gradient(transparent 0%, rgba(0,0,0,0.4) 25%, rgba(0,0,0,0.8) 60%, rgba(0,0,0,1) 85%);
       }
       .culture-popup-header {
         display: flex;
@@ -271,12 +271,12 @@
       
       /* Mission District specific content positioning */
       .culture-popup-backdrop.mission-district .culture-popup-content {
-        padding: 0 24px calc(24px + env(safe-area-inset-bottom));
+        padding: 0 24px calc(120px + env(safe-area-inset-bottom));
         display: flex;
         flex-direction: column;
-        justify-content: flex-end;
-        padding-bottom: calc(60px + env(safe-area-inset-bottom));
+        justify-content: center;
         align-items: center;
+        padding-top: 25vh;
       }
       
       /* Mission District text container with width limit */
@@ -342,7 +342,8 @@
           line-height: 14px;
         }
         .culture-popup-backdrop.mission-district .culture-popup-content {
-          padding: 0 20px calc(40px + env(safe-area-inset-bottom));
+          padding: 0 20px calc(100px + env(safe-area-inset-bottom));
+          padding-top: 20vh;
         }
       }
     </style>
