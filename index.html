@@ -44,9 +44,24 @@
         background: #000;
       }
 
-      /* Top overlay header - hidden for full bleed */
-      header.overlay-top {
-        display: none;
+      /* Top overlay logo */
+      .logo-overlay {
+        position: fixed;
+        top: calc(env(safe-area-inset-top) + 12px);
+        left: 16px;
+        z-index: 50;
+        width: 120px;
+        height: auto;
+        background: rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(8px);
+        border-radius: 12px;
+        padding: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      }
+      .logo-overlay img {
+        width: 100%;
+        height: auto;
+        display: block;
       }
 
       /* Bottom overlay controls - minimized and transparent */
@@ -167,11 +182,10 @@
     <!-- Full-screen camera feed -->
     <video id="camera" playsinline autoplay muted></video>
 
-    <!-- Top overlay header -->
-    <header class="overlay-top">
-      <div class="title">🎯 AI Billboard Scanner</div>
-      <div class="subtitle">Point camera at billboards and scan for AI text</div>
-    </header>
+    <!-- Top overlay logo -->
+    <div class="logo-overlay">
+      <img src="icon.svg" alt="AI Billboard Scanner" />
+    </div>
 
     <!-- Bottom overlay controls -->
     <div class="overlay-bottom">
