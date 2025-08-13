@@ -222,10 +222,10 @@
         padding: calc(env(safe-area-inset-top) + 20px) 24px 20px 24px;
         flex-shrink: 0;
         min-height: 60px;
-        background: rgba(255, 0, 0, 0.1); /* Temporary debug background */
+
       }
       .culture-popup-logo {
-        height: 40px;
+        height: 20px;
         width: auto;
         display: block;
         object-fit: contain;
@@ -252,16 +252,16 @@
       .culture-popup-title {
         font-family: Helvetica, Arial, sans-serif;
         font-weight: bold;
-        font-size: 72px;
-        line-height: 76px;
+        font-size: 36px;
+        line-height: 38px;
         color: black;
-        margin: 0 0 32px 0;
+        margin: 0 0 16px 0;
       }
       .culture-popup-body {
         font-family: Helvetica, Arial, sans-serif;
         font-weight: normal;
-        font-size: 36px;
-        line-height: 40px;
+        font-size: 18px;
+        line-height: 20px;
         color: black;
         margin: 0;
       }
@@ -269,12 +269,12 @@
       /* Responsive adjustments for smaller screens */
       @media (max-width: 768px) {
         .culture-popup-title {
-          font-size: 48px;
-          line-height: 52px;
+          font-size: 24px;
+          line-height: 26px;
         }
         .culture-popup-body {
-          font-size: 24px;
-          line-height: 28px;
+          font-size: 12px;
+          line-height: 14px;
         }
         .culture-popup-content {
           padding: 32px 20px calc(20px + env(safe-area-inset-bottom));
@@ -338,7 +338,7 @@
     <div id="culturePopupBackdrop" class="culture-popup-backdrop" aria-hidden="true">
       <div class="culture-popup-container">
         <div class="culture-popup-header">
-          <img src="logo.png" alt="Logo" class="culture-popup-logo" onerror="console.log('Logo failed to load'); this.style.display='none';" onload="console.log('Logo loaded successfully');" />
+          <img src="logo_black.png" alt="Logo" class="culture-popup-logo" onerror="console.log('Logo failed to load'); this.style.display='none';" onload="console.log('Logo loaded successfully');" />
           <button id="closeCulturePopup" class="culture-close-btn">✕</button>
         </div>
         <div class="culture-popup-content">
