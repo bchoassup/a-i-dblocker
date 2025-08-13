@@ -57,26 +57,13 @@
         align-items: center;
         justify-content: center;
       }
-      .logo-text {
-        text-align: center;
-        line-height: 1;
-      }
-      .logo-ai {
-        font-size: 48px;
-        font-weight: 800;
-        background: linear-gradient(135deg, #a3e635 0%, #22d3ee 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 4px;
-        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8));
-      }
-      .logo-sf {
-        font-size: 18px;
-        font-weight: 600;
-        color: #e2e8f0;
-        letter-spacing: 2px;
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+      .logo-image {
+        max-width: 100%;
+        max-height: 80px;
+        width: auto;
+        height: auto;
+        display: block;
+        filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.8));
       }
 
       /* Bottom overlay controls - minimized and transparent */
@@ -199,10 +186,7 @@
 
     <!-- Top overlay logo -->
     <div class="logo-overlay">
-      <div class="logo-text">
-        <div class="logo-ai">AI</div>
-        <div class="logo-sf">SF</div>
-      </div>
+      <img src="BILLBOARD VARIATIONS.png" alt="Billboard Variations Logo" class="logo-image" />
     </div>
 
     <!-- Bottom overlay controls -->
