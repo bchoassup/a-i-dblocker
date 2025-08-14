@@ -449,59 +449,6 @@
           padding: 0 24px;
         }
       }
-      
-      /* Billboard Overlay Styles */
-      .billboard-overlay {
-        position: absolute;
-        z-index: 1000;
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        transition: opacity 0.5s ease;
-        pointer-events: none;
-        background: linear-gradient(135deg, #8B4513, #D2691E);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        color: white;
-        font-family: 'Helvetica', Arial, sans-serif;
-        text-align: center;
-      }
-      
-      .billboard-overlay .overlay-title {
-        font-size: 1.2em;
-        font-weight: normal;
-        margin-bottom: 0.2em;
-      }
-      
-      .billboard-overlay .overlay-main {
-        font-size: 3.5em;
-        font-weight: bold;
-        line-height: 0.9;
-        margin: 0;
-      }
-      
-      .billboard-overlay .overlay-subtitle {
-        font-size: 1.5em;
-        font-weight: bold;
-        margin-top: 0.3em;
-        background: rgba(0,0,0,0.3);
-        padding: 0.3em 0.6em;
-        border-radius: 6px;
-      }
-      
-      /* Responsive overlay text */
-      @media (max-width: 768px) {
-        .billboard-overlay .overlay-title {
-          font-size: 0.8em;
-        }
-        .billboard-overlay .overlay-main {
-          font-size: 2.5em;
-        }
-        .billboard-overlay .overlay-subtitle {
-          font-size: 1em;
-        }
-      }
     </style>
   </head>
   <body>
@@ -898,122 +845,22 @@
         els.culturePopupBackdrop.classList.remove('show');
       }
 
-      // Billboard Detection Functions
-      async function detectBillboards(canvas) {
-        // Placeholder for actual ML model integration
-        // For now, simulate detection with a mock bounding box
-        
-        // Simulate detection delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Mock detection result - simulates finding a billboard in center of image
-        const mockDetection = {
-          bbox: [
-            canvas.width * 0.2,   // x: 20% from left
-            canvas.height * 0.3,  // y: 30% from top  
-            canvas.width * 0.6,   // width: 60% of image width
-            canvas.height * 0.4   // height: 40% of image height
-          ],
-          confidence: 0.85,
-          class: 'billboard'
-        };
-        
-        // Return mock detection 80% of the time (simulate realistic detection rate)
-        return Math.random() > 0.2 ? [mockDetection] : [];
-      }
-
-      function showBillboardOverlay(bbox, overlayContent) {
-        const [x, y, width, height] = bbox;
-        
-        // Get camera element for positioning reference
-        const camera = document.getElementById('camera');
-        const cameraRect = camera.getBoundingClientRect();
-        
-        // Calculate scale factors between canvas and display
-        const scaleX = cameraRect.width / 1280;  // Canvas width is 1280
-        const scaleY = cameraRect.height / (1280 * (cameraRect.height / cameraRect.width));
-        
-        // Create overlay element
-        const overlay = document.createElement('div');
-        overlay.className = 'billboard-overlay';
-        overlay.innerHTML = overlayContent;
-        
-        // Position and size the overlay
-        overlay.style.cssText += `
-          left: ${x * scaleX}px;
-          top: ${y * scaleY}px;
-          width: ${width * scaleX}px;
-          height: ${height * scaleY}px;
-          opacity: 0;
-        `;
-        
-        // Add to camera container
-        camera.parentElement.appendChild(overlay);
-        
-        // Fade in animation
-        setTimeout(() => overlay.style.opacity = '1', 100);
-        
-        // Auto-remove after 5 seconds
-        setTimeout(() => {
-          overlay.style.opacity = '0';
-          setTimeout(() => overlay.remove(), 500);
-        }, 5000);
-        
-        return overlay;
-      }
-
-      function createJapantownOverlay() {
-        return `
-          <div class="overlay-title">Welcome to Japantown</div>
-          <div class="overlay-main">Hisako Hibi</div>
-          <div class="overlay-subtitle">AD Blocker</div>
-        `;
-      }
-
       async function scanBillboard() {
-        setStatus('Detecting billboards…', true);
+        setStatus('Scanning…', true);
         const canvas = drawVideoToCanvas(1280);
-        
         try {
-          // Step 1: Detect billboards in the image
-          const billboards = await detectBillboards(canvas);
-          
-          if (billboards.length === 0) {
-            setStatus('No billboards detected. Point at a billboard and try again.');
-            return;
-          }
-          
-          setStatus('Billboard found! Scanning for AI content…', true);
-          
-          // Step 2: Run OCR on the detected billboard area
-          const billboard = billboards[0]; // Use first detected billboard
-          const { data } = await Tesseract.recognize(canvas, 'eng', { 
-            logger: m => { 
-              if (m.status === 'recognizing text') 
-                setStatus(`Scanning billboard… ${(m.progress*100).toFixed(0)}%`, true); 
-            } 
-          });
-          
+          const { data } = await Tesseract.recognize(canvas, 'eng', { logger: m => { if (m.status === 'recognizing text') setStatus(`Scanning… ${(m.progress*100).toFixed(0)}%`, true); } });
           const text = data?.text || '';
           const terms = extractKeywordsFromText(text);
-          
           if (terms.length) {
-            // AI content detected - show overlay instead of popup
-            setStatus('AI billboard detected! Replacing with local culture…');
-            showBillboardOverlay(billboard.bbox, createJapantownOverlay());
-            
-            // Also show the culture popup after a delay
-            setTimeout(() => {
-              showDetectedPopup(terms, currentNeighborhoodName);
-            }, 1000);
-            
+            setStatus('AI detected!');
+            showDetectedPopup(terms, currentNeighborhoodName);
           } else {
-            setStatus('Billboard detected, but no AI keywords found.');
+            setStatus('No AI text detected. Try a closer angle or different ad.');
           }
-          
         } catch (e) {
           console.error(e);
-          setStatus('Detection failed. Try again.');
+          setStatus('OCR failed. Try again.');
         }
       }
 
